@@ -190,7 +190,7 @@ update_grub() {
                 $(df '$remote_path/boot' | awk "END{print \$1}"))/../)'
             ssh "$remote" "grub-mkimage -p '(hd0,msdos1)/grub' -d $grub_dir/i386-pc \
                 -o $grub_dir/i386-pc/core.img -O i386-pc at_keyboard biosdisk boot \
-                chain configfile ext2 fat linux ls part_msdos reboot serial vga"
+                chain configfile echo ext2 fat linux ls multiboot2 part_msdos reboot serial vga"
             ssh "$remote" "echo \"(hd0) /dev/\$($disk_device_name)\" > /tmp/device.map"
             ssh "$remote" "grub-bios-setup -v --device-map=/tmp/device.map \
                 -r \"hd0,msdos1\" -d $grub_dir/i386-pc /dev/\$($disk_device_name)"
