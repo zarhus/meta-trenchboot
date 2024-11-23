@@ -21,6 +21,7 @@ RDEPENDS:${PN}-utils += " \
                          vim \
                          rsync \
                          kexec \
+                         gawk \
                          "
 
 RDEPENDS:${PN}-tests = " \
