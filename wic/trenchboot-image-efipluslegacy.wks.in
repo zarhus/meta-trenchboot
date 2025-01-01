@@ -1,4 +1,4 @@
 bootloader --configfile="${TB_GRUB_CFG_FILE}"
 
-part /boot --source bootimg-biosplusefi --sourceparams="loader=grub-efi,loader-pcbios=grub" --ondisk sda --label boot --align 1024 --use-uuid --active --system-id 0xef
+part /boot --source bootimg-biosplusefi --sourceparams="loader=grub-efi,loader-pcbios=grub" --ondisk sda --label boot --align 1024 --use-uuid --active --system-id 0xef --fixed-size 128
 part /     --source rootfs --fstype=ext4                                 --ondisk sda --label root --align 1024 --use-uuid --fixed-size 1024
