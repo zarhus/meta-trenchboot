@@ -21,6 +21,8 @@ SRCREV_gnulib = "e87d09bee37eeb742b8a34c9054cd2ebde22b835"
 
 SRCREV_FORMAT = "grub_gnulib"
 
+TARGET_CC_ARCH += "${LDFLAGS}"
+
 S = "${WORKDIR}/git"
 
 do_configure:prepend() {
