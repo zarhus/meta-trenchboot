@@ -5,7 +5,7 @@ LICENSE = "CLOSED"
 
 UNZIPPED_DIR = "630744_003"
 SRC_URI = "https://cdrdv2.intel.com/v1/dl/getContent/630744?explicitVersion=true;downloadfilename=${UNZIPPED_DIR}.zip"
-SRC_URI[sha256sum] = "0b412c1832bd504d4b8f5fa01b32449c344fe0019e5e4da6bb5d80d393df5e8b"
+SRC_URI[sha256sum] = "4a4696bfa855b711416a0fedbe2b1fa9390bde9ce0162e3044132f1b5d328629"
 
 ALLOW_EMPTY:${PN} = "1"
 
