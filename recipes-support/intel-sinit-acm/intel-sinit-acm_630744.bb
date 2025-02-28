@@ -4,7 +4,7 @@ HOMEPAGE = "https://www.intel.com/content/www/us/en/developer/articles/tool/inte
 LICENSE = "CLOSED"
 
 UNZIPPED_DIR = "630744_003"
-SRC_URI = "https://cdrdv2.intel.com/v1/dl/getContent/630744?explicitVersion=true;downloadfilename=${UNZIPPED_DIR}.zip"
+SRC_URI = "file://${UNZIPPED_DIR}.zip"
 SRC_URI[sha256sum] = "4a4696bfa855b711416a0fedbe2b1fa9390bde9ce0162e3044132f1b5d328629"
 
 ALLOW_EMPTY:${PN} = "1"
