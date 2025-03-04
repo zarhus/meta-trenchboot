@@ -15,3 +15,5 @@ FILES:${PN}-common += " \
 RDEPENDS:${PN}-common += "diffutils freetype"
 
 INSANE_SKIP:${PN}-common += "arch"
+
+TARGET_CC_ARCH += "${LDFLAGS}"
