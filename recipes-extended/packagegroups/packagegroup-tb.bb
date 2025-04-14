@@ -13,6 +13,7 @@ RDEPENDS:${PN}-base += " \
                         kernel-modules \
                         skl \
                         intel-sinit-acm \
+                        aem \
                         "
 
 RDEPENDS:${PN}-utils += " \
