@@ -2,7 +2,7 @@
 require recipes-kernel/linux/linux-yocto.inc
 
 SUMMARY = "Linux kernel"
-DESCRIPTION = "Linux kernel 6.11"
+DESCRIPTION = "Linux kernel 6.13"
 HOMEPAGE = "https://github.com/TrenchBoot/linux"
 SECTION = "kernel"
 LICENSE = "GPL-2.0-only"
@@ -24,7 +24,7 @@ SRC_URI = "\
 SRCREV_machine = "dbbb5ef0d915435b20290766f99461e31c273b6c"
 SRCREV_meta = "49698cadd79745fa26aa7ef507c16902250c1750"
 
-LINUX_VERSION ?= "6.11-rc7"
+LINUX_VERSION ?= "6.13-rc3"
 
 KCONFIG_MODE = "--alldefconfig"
 
