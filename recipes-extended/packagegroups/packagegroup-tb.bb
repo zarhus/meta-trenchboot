@@ -27,4 +27,5 @@ RDEPENDS:${PN}-utils += " \
 
 RDEPENDS:${PN}-tests = " \
     trenchboot-tests \
+    trenchboot-hcl-report \
 "
