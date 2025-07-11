@@ -31,6 +31,10 @@ repos:
     layers:
       meta-tpm:
 
+  meta-dasharo:
+    url: https://github.com/Dasharo/meta-dasharo
+    refspec: eccba1ec830aded5d2d9a85e9ceeae596196a4c2
+
 bblayers_conf_header:
   standard: |
     POKY_BBLAYERS_CONF_VERSION = "2"
