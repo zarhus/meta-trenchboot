@@ -11,7 +11,7 @@ ci:
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: check-added-large-files
       - id: check-merge-conflict
@@ -31,12 +31,12 @@ repos:
           - commit-msg
 
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.3.0
+    rev: v2.4.1
     hooks:
       - id: codespell
 
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.35.1
+    rev: v1.37.1
     hooks:
       - id: yamllint
         args: [-c=.yamllint]
@@ -48,7 +48,7 @@ repos:
         args: ["--severity=warning"]
 
   - repo: https://github.com/priv-kweihmann/oelint-adv
-    rev: 5.7.2
+    rev: 8.1.4
     hooks:
       - id: oelint-adv
         args: [--rulefile=.oelint-ruleset.json, --hide=info, --quiet, --fix]
@@ -60,7 +60,7 @@ repos:
         files: .*\.(bb)|(bbappend)|(bbclass)$
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.41.0
+    rev: v0.45.0
     hooks:
       - id: markdownlint
       - id: markdownlint-fix
