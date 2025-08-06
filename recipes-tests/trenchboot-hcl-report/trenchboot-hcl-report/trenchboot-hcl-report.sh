@@ -83,6 +83,70 @@ check_drtm_event() {
   fi
 }
 
+# Function to check txt-parse_err and handle errors
+check_txt_parse_err() {
+    if [[ "$INTEL" == "true" ]]; then
+        local txt_err_output
+        txt_err_output=$(txt-parse_err 2>/dev/null)
+        local txt_err_code
+
+        # Extract error code from output (format: "ERRORCODE: 0x00000000 no error")
+        if [[ $txt_err_output =~ ERRORCODE:[[:space:]]*0x([0-9A-Fa-f]+) ]]; then
+            txt_err_code="${BASH_REMATCH[1]}"
+
+            # Check if error code is non-zero
+            if [[ "$txt_err_code" != "00000000" ]]; then
+                echo ""
+                echo "TXT Error detected: $txt_err_output"
+                echo ""
+                echo "A TXT error was found on your system. This indicates a previous TrenchBoot failure."
+                echo "Would you like to report this failure? (y/n)"
+                read -r report_failure
+
+                if [[ "$report_failure" == "y" || "$report_failure" == "Y" ]]; then
+                    echo ""
+                    echo "Please specify the previous failed boot entry:"
+                    echo "1) Linux"
+                    echo "2) Xen"
+                    echo "Enter choice (1 or 2):"
+                    read -r boot_entry_choice
+
+                    case $boot_entry_choice in
+                        1)
+                            FAILED_BOOT_ENTRY="linux"
+                            ;;
+                        2)
+                            FAILED_BOOT_ENTRY="xen"
+                            ;;
+                        *)
+                            echo "Invalid choice."
+                            exit 1
+                            ;;
+                    esac
+
+                    # Set TB_SUCCESS to failure since we have a TXT error
+                    TB_SUCCESS="failure"
+                    TXT_ERROR_CODE="0x$txt_err_code"
+                    TXT_ERROR_REPORT="yes"
+                    # Override BOOT_FLOW with user's failed boot entry response
+                    BOOT_FLOW="$FAILED_BOOT_ENTRY"
+
+                    echo "Thank you. The failure will be included in the report."
+                else
+                    exit 1
+                fi
+            else
+                TXT_ERROR_CODE="0x00000000"
+                TXT_ERROR_REPORT="no"
+            fi
+        else
+            echo "Warning: Could not parse txt-parse_err output: $txt_err_output"
+            TXT_ERROR_CODE="unknown"
+            TXT_ERROR_REPORT="no"
+        fi
+    fi
+}
+
 BRAND="$(dmidecode -s system-manufacturer)"
 PRODUCT="$(dmidecode -s system-product-name)"
 BIOS="$(dmidecode -s bios-version)"
@@ -127,6 +191,11 @@ else
   INTEL="false"
 fi
 
+# Initialize TXT error variables
+TXT_ERROR_CODE="unknown"
+TXT_ERROR_REPORT="no"
+FAILED_BOOT_ENTRY=""
+
 if [[ "$INTEL" == "true" ]]; then
   run_and_log "txt-suite exec-tests" "txt-suite"
   run_and_log "txt-stat" "txt-stat"
@@ -160,17 +229,20 @@ DRTM_TEST_RESULT=$?
 case $DRTM_TEST_RESULT in
   # DRTM event detected
   0)
-    TB_SUCCESS="yes"
+    TB_SUCCESS="success"
     ;;
   # DRTM event not detected
   1)
-    TB_SUCCESS="no"
+    TB_SUCCESS="failure"
     ;;
   # failed to get PCR data from TPM
   *)
     TB_SUCCESS="unknown"
     ;;
 esac
+
+# Check for TXT errors on Intel platforms
+check_txt_parse_err
 
 READABLE_OUTPUT="
 TrenchBoot success: $TB_SUCCESS
@@ -186,6 +258,16 @@ $CHIPSET
 
 TPM:\t\t$TPM
 "
+
+# Add TXT error information if applicable
+if [[ "$INTEL" == "true" && "$TXT_ERROR_CODE" != "unknown" && "$TXT_ERROR_CODE" != "0x00000000" ]]; then
+    READABLE_OUTPUT+="
+TXT Error Code:\t$TXT_ERROR_CODE"
+    if [[ "$TXT_ERROR_REPORT" == "yes" && -n "$FAILED_BOOT_ENTRY" ]]; then
+        READABLE_OUTPUT+="
+Failed Boot Entry:\t$FAILED_BOOT_ENTRY"
+    fi
+fi
 
 YAML_OUTPUT="---
 layout:
@@ -226,28 +308,39 @@ versions:
 if [ "$XEN" = true ]; then
   YAML_OUTPUT+="
     xen: |
-      $XEN_MAJOR.$XEN_MINOR$XEN_EXTRA
-"
+      $XEN_MAJOR.$XEN_MINOR$XEN_EXTRA"
+fi
+
+# Add TXT error information to YAML if applicable
+if [[ "$INTEL" == "true" && "$TXT_ERROR_CODE" != "unknown" ]]; then
+    YAML_OUTPUT+="
+    txt-error-code: |
+      $TXT_ERROR_CODE"
+
+    if [[ "$TXT_ERROR_REPORT" == "yes" && -n "$FAILED_BOOT_ENTRY" ]]; then
+        YAML_OUTPUT+="
+    failed-boot-entry: |
+      $FAILED_BOOT_ENTRY"
+    fi
 fi
 
 echo
 echo -e "HCL summary:"
 echo -e "$READABLE_OUTPUT"
 
+# Create output directory structure based on TB_DISTRO_VER
+OUTPUT_DIR="$HOME/v$TB_DISTRO_VER/$TB_SUCCESS/$BOOT_FLOW"
+mkdir -p "$OUTPUT_DIR"
+
 # cpio
 cd -- "$TEMP_DIR" || exit
-find -print0 | cpio --quiet -o -H crc --null | gzip  > "$HOME/$FILENAME.cpio.gz"
+find -print0 | cpio --quiet -o -H crc --null | gzip  > "$OUTPUT_DIR/$FILENAME.cpio.gz"
 cd || exit
 
-echo -e "$YAML_OUTPUT" >> "$HOME/$FILENAME.yml"
-echo -e "HCL info saved to: $FILENAME.yml"
-echo -e "Logs saved to: $FILENAME.cpio.gz"
+echo -e "$YAML_OUTPUT" >> "$OUTPUT_DIR/$FILENAME.yml"
+echo -e "HCL info saved to: $OUTPUT_DIR/$FILENAME.yml"
+echo -e "Logs saved to: $OUTPUT_DIR/$FILENAME.cpio.gz"
 echo
-
-# cpio
-cd -- "$TEMP_DIR" || exit
-find -print0 | cpio --quiet -o -H crc --null | gzip  > "$HOME/$FILENAME.cpio.gz"
-cd || exit
 
 # cleanup
 if [[ -d $TEMP_DIR ]]
