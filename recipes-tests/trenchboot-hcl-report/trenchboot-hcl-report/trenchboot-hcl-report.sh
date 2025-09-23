@@ -147,10 +147,31 @@ check_txt_parse_err() {
     fi
 }
 
+# Function to sanitize names for directory/file usage
+sanitize_name() {
+    local name="$1"
+    # Replace spaces and special chars with underscores, remove multiple underscores
+    echo "$name" | sed 's/[^[:alnum:]]/_/g' | sed 's/_\+/_/g' | sed 's/^_\|_$//g'
+}
+
 BRAND="$(dmidecode -s system-manufacturer)"
 PRODUCT="$(dmidecode -s system-product-name)"
-BIOS="$(dmidecode -s bios-version)"
+VERSION="$(dmidecode -s system-version)"
+BIOS_VENDOR="$(dmidecode -s bios-vendor)"
+BIOS_VERSION="$(dmidecode -s bios-version)"
 TYPE="$(dmidecode -s chassis-type)"
+
+# Create a combined product identifier that includes both product and version
+# This handles cases where version has more readable info than product name
+PRODUCT_COMBINED="$PRODUCT"
+if [[ -n "$VERSION" && "$VERSION" != "Not Specified" && "$VERSION" != "To be filled by O.E.M." && "$VERSION" != "$PRODUCT" ]]; then
+    # If version contains useful info, combine them
+    PRODUCT_COMBINED="${PRODUCT}_${VERSION}"
+fi
+
+# Sanitize brand and product for directory names
+BRAND_SANITIZED=$(sanitize_name "$BRAND")
+PRODUCT_SANITIZED=$(sanitize_name "$PRODUCT_COMBINED")
 
 DATE=$(date +%Y%m%d-%H%M%S) || exit
 
@@ -249,7 +270,9 @@ TrenchBoot success: $TB_SUCCESS
 
 Brand:\t\t$BRAND
 Model:\t\t$PRODUCT
-BIOS:\t\t$BIOS
+Version:\t$VERSION
+BIOS Vendor:\t$BIOS_VENDOR
+BIOS Version:\t$BIOS_VERSION
 
 CPU:
 $CPU
@@ -280,8 +303,12 @@ brand: |
   $BRAND
 model: |
   $PRODUCT
-bios: |
-  $BIOS
+version: |
+  $VERSION
+bios-vendor: |
+  $BIOS_VENDOR
+bios-version: |
+  $BIOS_VERSION
 cpu: |
 $CPU
 cpu-short: |
@@ -328,8 +355,7 @@ echo
 echo -e "HCL summary:"
 echo -e "$READABLE_OUTPUT"
 
-# Create output directory structure based on TB_DISTRO_VER
-OUTPUT_DIR="$HOME/v$TB_DISTRO_VER/$TB_SUCCESS/$BOOT_FLOW"
+OUTPUT_DIR="$HOME/boards/$BRAND_SANITIZED/$PRODUCT_SANITIZED/$TB_SUCCESS/$BOOT_FLOW/v$TB_DISTRO_VER"
 mkdir -p "$OUTPUT_DIR"
 
 # cpio
