@@ -8,8 +8,8 @@ repos:
   meta-trenchboot:
 
   poky:
-    url: https://github.com/zarhus/poky.git
-    refspec: 0bb7dda99977a3366a0e2f55473dd516eec57346
+    url: https://git.yoctoproject.org/git/poky
+    commit: 702c515a7568b10bb208635d1d747b529e810690
     layers:
       meta:
       meta-poky:
@@ -17,7 +17,7 @@ repos:
 
   meta-openembedded:
     url: https://git.openembedded.org/meta-openembedded
-    refspec: a72010b414ee3d73888ac9cb4e310e8f05e13aea
+    commit: 52e78803b0c0c2f6b523b6a6fd4505af25cc6ff2
     layers:
       meta-oe:
       meta-networking:
@@ -27,13 +27,13 @@ repos:
 
   meta-security:
     url: https://git.yoctoproject.org/meta-security
-    refspec: 11ea91192d43d7c2b0b95a93aa63ca7e73e38034
+    commit: 730ebbddc121016151a72d3e0bce61351a0ad365
     layers:
       meta-tpm:
 
   meta-dasharo:
     url: https://github.com/Dasharo/meta-dasharo
-    refspec: eccba1ec830aded5d2d9a85e9ceeae596196a4c2
+    commit: 42bcc8afcaf8818622f72dd4b0f4fb91aa2ca40b
 
 bblayers_conf_header:
   standard: |
