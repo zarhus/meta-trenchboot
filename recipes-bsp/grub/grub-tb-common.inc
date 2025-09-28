@@ -23,8 +23,6 @@ SRCREV_FORMAT = "grub_gnulib"
 
 TARGET_CC_ARCH += "${LDFLAGS}"
 
-S = "${WORKDIR}/git"
-
 do_configure:prepend() {
     cd ${S}
     ${S}/bootstrap

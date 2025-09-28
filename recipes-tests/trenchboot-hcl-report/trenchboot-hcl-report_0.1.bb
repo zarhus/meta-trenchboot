@@ -7,8 +7,6 @@ LIC_FILES_CHKSUM = "file://${COREBASE}/meta/files/common-licenses/LGPL-2.1-or-la
 
 SRC_URI = "file://trenchboot-hcl-report.sh"
 
-S = "${WORKDIR}/git"
-
 RDEPENDS:${PN} = " \
     bash \
     converged-security-suite-txt \
@@ -23,5 +21,5 @@ do_compile[noexec] = "1"
 
 do_install() {
     install -d ${D}${bindir}
-    install -m 0755 ${WORKDIR}/trenchboot-hcl-report.sh ${D}${bindir}/trenchboot-hcl-report
+    install -m 0755 ${UNPACKDIR}/trenchboot-hcl-report.sh ${D}${bindir}/trenchboot-hcl-report
 }

@@ -12,5 +12,5 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 do_deploy:append() {
     install -d ${DEPLOYDIR}
-    install -m 0664 ${WORKDIR}/xen.cfg ${DEPLOYDIR}
+    install -m 0664 ${UNPACKDIR}/xen.cfg ${DEPLOYDIR}
 }

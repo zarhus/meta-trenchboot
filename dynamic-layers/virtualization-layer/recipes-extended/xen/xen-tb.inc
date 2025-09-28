@@ -4,10 +4,9 @@ PV = "${XEN_REL}+tb"
 
 SRC_URI = "git://github.com/TrenchBoot/xen.git;branch=${XEN_BRANCH};protocol=https"
 
-# v0.5.0 tag
-SRCREV = "ad7b5727bcde383957f69ff03a38ade1c82f531d"
+SRCREV = "113264e01d44acfe2af59cf220fe7124ab49b9e4"
 
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/git"
 
-XEN_REL = "4.17"
-XEN_BRANCH = "aem-next"
+XEN_REL = "4.21-dev"
+XEN_BRANCH = "aem-staging-2025-05-30-v3"

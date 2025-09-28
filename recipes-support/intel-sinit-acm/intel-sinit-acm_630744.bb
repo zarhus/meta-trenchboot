@@ -11,9 +11,11 @@ ALLOW_EMPTY:${PN} = "1"
 
 inherit deploy
 
+S = "${UNPACKDIR}"
+
 do_deploy() {
     install -d ${DEPLOYDIR}/acm
-    for file in ${WORKDIR}/${UNZIPPED_DIR}/*.bin
+    for file in ${S}/${UNZIPPED_DIR}/*.bin
     do
         install -m 0600 ${file} ${DEPLOYDIR}/acm/
     done

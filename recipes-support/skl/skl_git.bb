@@ -13,7 +13,6 @@ SRCREV = "de1899007d038eeacf5edb8e63c0f0a4b3e265c4"
 
 TUNE_CCARGS:remove = "-msse3 -mfpmath=sse"
 
-S = "${WORKDIR}/git"
 FILES:${PN} += "${bindir}/skl /boot"
 RDEPENDS:${PN} = "bash"
 
