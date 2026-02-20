@@ -1,4 +1,4 @@
-require tb-minimal-image.bb
+require tb-common.inc
 
 # Based on xen-image-minimal from meta-virtualization
 
