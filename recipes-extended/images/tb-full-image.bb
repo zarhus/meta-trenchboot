@@ -11,20 +11,21 @@ XEN_ACPI_PROCESSOR_MODULE:x86 = "kernel-module-xen-acpi-processor"
 XEN_ACPI_PROCESSOR_MODULE:x86-64 = "kernel-module-xen-acpi-processor"
 
 XEN_KERNEL_MODULES ?= " \
-                       kernel-module-xen-blkback kernel-module-xen-gntalloc kernel-module-tun \
-                       kernel-module-xen-gntdev kernel-module-xen-netback kernel-module-xen-wdt \
-                       ${@bb.utils.contains('MACHINE_FEATURES', 'pci', "${XEN_PCIBACK_MODULE}", '', d)} \
-                       ${@bb.utils.contains('MACHINE_FEATURES', 'acpi', '${XEN_ACPI_PROCESSOR_MODULE}', '', d)} \
-                      "
+    kernel-module-xen-blkback kernel-module-xen-gntalloc kernel-module-tun \
+    kernel-module-xen-gntdev kernel-module-xen-netback kernel-module-xen-wdt \
+    ${@bb.utils.contains('MACHINE_FEATURES', 'pci', "${XEN_PCIBACK_MODULE}", '', d)} \
+    ${@bb.utils.contains('MACHINE_FEATURES', 'acpi', '${XEN_ACPI_PROCESSOR_MODULE}', '', d)} \
+"
 
 IMAGE_INSTALL:append = " \
-                        ${XEN_KERNEL_MODULES} \
-                        xen-tools \
-                        qemu \
-                        kernel-image \
-                        kernel-vmlinux \
-                        "
+    ${XEN_KERNEL_MODULES} \
+    xen-tools \
+    qemu \
+    kernel-image \
+    kernel-vmlinux \
+"
 
+# nooelint: oelint.vars.mispell.unknown
 do_image_wic[depends] += "xen:do_deploy"
 
 do_check_xen_state() {

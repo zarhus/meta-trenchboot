@@ -1,0 +1,18 @@
+{
+  "$imports": [
+    "yocto",
+    "networking-layer",
+    "openembedded-layer",
+    "filesystems-layer",
+    "meta-python",
+    "perl-layer",
+    "yoctobsp"
+
+  ],
+  "variables": {
+    "known": [
+      "lcl_maybe_fortify"
+    ],
+    "renamed": {}
+  }
+}

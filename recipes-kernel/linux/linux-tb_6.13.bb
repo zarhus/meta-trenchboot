@@ -26,6 +26,7 @@ SRCREV_meta = "49698cadd79745fa26aa7ef507c16902250c1750"
 
 LINUX_VERSION ?= "6.13-rc3"
 
+# nooelint: oelint.vars.mispell.unknown
 KCONFIG_MODE = "--alldefconfig"
 
 COMPATIBLE_MACHINE:pcengines-apux = "pcengines-apux"

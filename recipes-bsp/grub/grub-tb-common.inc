@@ -1,11 +1,13 @@
+# nooelint: oelint.append.protvars
 PV = "2.12"
 
 SRC_URI = " \
-           git://github.com/TrenchBoot/grub.git;name=grub;branch=${BRANCH_grub};protocol=https \
-           git://github.com/coreutils/gnulib;name=gnulib;branch=${BRANCH_gnulib};protocol=https;destsuffix=git/gnulib \
-          "
+    git://github.com/TrenchBoot/grub.git;name=grub;branch=${BRANCH_grub};protocol=https \
+    git://github.com/coreutils/gnulib;name=gnulib;branch=${BRANCH_gnulib};protocol=https;destsuffix=git/gnulib \
+"
 
 BRANCH_grub = "tb-dev"
+# nooelint: oelint.append.protvars
 SRCREV_grub = "b5517787efc2359908c268e7bad5eb0bd1043525"
 
 # We add gnulib to SRC_URI to avoid downloading it during the do_configure().
@@ -17,6 +19,7 @@ SRCREV_grub = "b5517787efc2359908c268e7bad5eb0bd1043525"
 # with the bootstrap.conf, otherwise it will be sync during do_configure()
 # again.
 BRANCH_gnulib = "master"
+# nooelint: oelint.append.protvars
 SRCREV_gnulib = "e87d09bee37eeb742b8a34c9054cd2ebde22b835"
 
 SRCREV_FORMAT = "grub_gnulib"

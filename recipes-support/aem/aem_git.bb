@@ -10,7 +10,6 @@ SRC_URI = "git://github.com/TrenchBoot/qubes-antievilmaid.git;protocol=https;bra
 SRCREV = "18a0a743462f50363ca83a9946bbc8b399a6e6da"
 
 S = "${WORKDIR}/git"
-FILES:${PN} += "${sbindir}"
 
 ALLOW_EMPTY:${PN} = "1"
 
