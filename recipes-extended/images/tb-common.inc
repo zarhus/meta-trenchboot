@@ -18,3 +18,9 @@ IMAGE_FSTYPES += "wic wic.gz wic.bmap"
 # The boot partition takes skl-amdsl.bin from DEPLOY_DIR_IMAGE.
 # nooelint: oelint.vars.mispell.unknown
 do_image_wic[depends] += "skl-amdsl:do_deploy"
+
+# To make do_image_wic generate different partition PARTUUID from other Yocto
+# projects. This is workaround for possible clash that might result in firmware
+# not showing duplicate boot partitions or mounting wrong partitions if done
+# with the use of PARTUUID
+SOURCE_DATE_EPOCH = "1234"
