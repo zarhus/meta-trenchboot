@@ -1,0 +1,53 @@
+From 051e064591dc9873c40b377c89118c88b62ebccb Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Tue, 17 Feb 2026 16:27:52 +0100
+Subject: [PATCH 3/3] psp.c: Set MSI PRO B850 and Turin CCP/ASP PSP version
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+MSI PRO B850 (1022:15C7) - change from PSP_NONE to PSP_V3
+Turin CCP/ASP (1022:156E) - add device and set to ASP (and expand
+                            psp_version_t enum)
+
+Upstream-Status: Pending
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+---
+ grub-core/loader/slaunch/psp.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/grub-core/loader/slaunch/psp.c b/grub-core/loader/slaunch/psp.c
+index b9a965bc422e..f30d79063402 100644
+--- a/grub-core/loader/slaunch/psp.c
++++ b/grub-core/loader/slaunch/psp.c
+@@ -55,7 +55,8 @@ typedef enum
+   PSP_NONE = 0,
+   PSP_V1,
+   PSP_V2,
+-  PSP_V3
++  PSP_V3,
++  ASP,
+ } psp_version_t;
+ 
+ struct pci_psp_device
+@@ -73,7 +74,8 @@ static const struct pci_psp_device psp_devs_list[] = {
+   {0x1022, 0x15DF, PSP_V3},
+   {0x1022, 0x1649, PSP_V2},
+   {0x1022, 0x14CA, PSP_V3},
+-  {0x1022, 0x15C7, PSP_NONE}
++  {0x1022, 0x15C7, PSP_V3},
++  {0x1022, 0x156E, ASP},
+ };
+ 
+ static psp_version_t psp_version;
+@@ -273,6 +275,7 @@ init_drtm_interface (grub_addr_t base_addr, psp_version_t version)
+     {
+     case PSP_V2:
+     case PSP_V3:
++    case ASP:
+       psp_drtm.c2pmsg_72 = (volatile grub_uint32_t *)(base_addr + 0x10a20);
+       psp_drtm.c2pmsg_93 = (volatile grub_uint32_t *)(base_addr + 0x10a74);
+       psp_drtm.c2pmsg_94 = (volatile grub_uint32_t *)(base_addr + 0x10a78);
+-- 
+2.52.0
+

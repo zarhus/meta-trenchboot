@@ -1,8 +1,11 @@
+FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
+
 PV = "2.12"
 
 SRC_URI = " \
            git://github.com/TrenchBoot/grub.git;name=grub;branch=${BRANCH_grub};protocol=https \
            git://github.com/coreutils/gnulib;name=gnulib;branch=${BRANCH_gnulib};protocol=https;destsuffix=git/gnulib \
+           file://0001-psp.c-Set-MSI-PRO-B850-and-Turin-CCP-ASP-PSP-version.patch \
           "
 
 BRANCH_grub = "tb-dev"
