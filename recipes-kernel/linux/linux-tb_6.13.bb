@@ -20,6 +20,7 @@ SRC_URI = "\
     file://defconfig \
     file://debug.cfg \
     file://efi.cfg \
+    file://0001-slaunch.c-Set-MSI-PRO-B850-MZ33-AR1-PSP-version.patch \
 "
 SRCREV_machine = "9d24bf207d05568dce465b89e3e7dcf053b76aea"
 SRCREV_meta = "49698cadd79745fa26aa7ef507c16902250c1750"
