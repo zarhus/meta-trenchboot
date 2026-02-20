@@ -4,27 +4,27 @@ DESCRIPTION = "Trenchboot support packagegroup"
 inherit packagegroup
 
 PACKAGES = " \
-            ${PN}-base \
-            ${PN}-utils \
-            ${PN}-tests \
-            "
+    ${PN}-base \
+    ${PN}-utils \
+    ${PN}-tests \
+"
 
 RDEPENDS:${PN}-base += " \
-                        kernel-modules \
-                        skl \
-                        skl-amdsl \
-                        intel-sinit-acm \
-                        aem \
-                        "
+    kernel-modules \
+    skl \
+    skl-amdsl \
+    intel-sinit-acm \
+    aem \
+"
 
 RDEPENDS:${PN}-utils += " \
-                         packagegroup-security-tpm2 \
-                         util-linux-bash-completion \
-                         vim \
-                         rsync \
-                         kexec \
-                         gawk \
-                         "
+    packagegroup-security-tpm2 \
+    util-linux-bash-completion \
+    vim \
+    rsync \
+    kexec \
+    gawk \
+"
 
 RDEPENDS:${PN}-tests = " \
     trenchboot-tests \
