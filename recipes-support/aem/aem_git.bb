@@ -11,11 +11,24 @@ SRCREV = "18a0a743462f50363ca83a9946bbc8b399a6e6da"
 
 S = "${WORKDIR}/git"
 
+FILES:${PN} += "${localstatedir}/lib/anti-evil-maid"
+
 do_install() {
-    install -d "${D}${sbindir}"
+    install -d "${D}${sbindir}" "${D}${localstatedir}/lib/anti-evil-maid"
     for file in "${S}/sbin"/*; do
         install -m 0755 "${file}" "${D}${sbindir}"
     done
 }
 
-RDEPENDS:${PN} += "bash gawk"
+# missing scrypt, oathtool
+RDEPENDS:${PN} += " \
+    coreutils \
+    gawk \
+    bash \
+    trousers-changer \
+    tpm-extra \
+    tpm-tools \
+    tpm2-tools \
+    qrencode \
+    openssl \
+"
