@@ -10,17 +10,12 @@ SRC_URI = "git://github.com/TrenchBoot/qubes-antievilmaid.git;protocol=https;bra
 SRCREV = "18a0a743462f50363ca83a9946bbc8b399a6e6da"
 
 S = "${WORKDIR}/git"
-FILES:${PN} += "${sbindir}"
 
-ALLOW_EMPTY:${PN} = "1"
-
-inherit deploy
-
-do_deploy() {
-    install -d ${DEPLOYDIR}${sbindir}
-    for file in ${S}/sbin/*; do
-        install -m 0755 ${file} ${DEPLOYDIR}${sbindir}
+do_install() {
+    install -d "${D}${sbindir}"
+    for file in "${S}/sbin"/*; do
+        install -m 0755 "${file}" "${D}${sbindir}"
     done
 }
 
-addtask do_deploy after do_install
+RDEPENDS:${PN} += "bash gawk"
