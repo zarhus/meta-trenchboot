@@ -1,0 +1,62 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Mon, 16 Mar 2026 00:00:00 +0000
+Subject: [PATCH] tpm/tis: extend MMIO region to cover all TIS localities
+
+Some ACPI/PnP tables only declare a single TPM locality (0x1000
+bytes) even though the TIS spec requires 5 localities (TIS_MEM_LEN =
+0x5000 bytes). Since 6.12, tpm_tis_core_init probes all localities
+unconditionally, causing a page fault when the ioremap'd region is
+smaller than the accessed offset. Extend the resource to TIS_MEM_LEN
+here; the hardware always provides the full region at the standard
+base address even when the BIOS under-declares it.
+
+Reproducer: HP t630 Thin Client (BIOS M40 v01.05 07/07/2017) with
+kernel 6.13 crashes at boot:
+
+  BUG: unable to handle page fault for address: ffffa47140062000
+  tpm_tcg_read_bytes+0x51/0xb0
+  check_locality+0x4b/0x90
+  tpm_tis_core_init+0x301/0x910
+  tpm_tis_pnp_init+0xda/0x110
+
+The ACPI/PnP resource reports 0x1000 bytes (one locality). The
+driver maps only 0xFED40000-0xFED40FFF, then faults when
+check_locality(chip, 1) accesses TPM_ACCESS(1) = base + 0x1000.
+
+Upstream-Status: Pending
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+---
+ drivers/char/tpm/tpm_tis.c | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/drivers/char/tpm/tpm_tis.c b/drivers/char/tpm/tpm_tis.c
+index 9aa230a63..0e8564d6a 100644
+--- a/drivers/char/tpm/tpm_tis.c
++++ b/drivers/char/tpm/tpm_tis.c
+@@ -259,6 +259,23 @@ static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
+ 		return -ENODEV;
+ 	tpm_info.res = *res;
+
++	/*
++	 * Some ACPI/PnP tables only declare a single TPM locality (0x1000
++	 * bytes) even though the TIS spec requires 5 localities (TIS_MEM_LEN =
++	 * 0x5000 bytes). Since 6.12, tpm_tis_core_init probes all localities
++	 * unconditionally, causing a page fault when the ioremap'd region is
++	 * smaller than the accessed offset. Extend the resource to TIS_MEM_LEN
++	 * here; the hardware always provides the full region at the standard
++	 * base address even when the BIOS under-declares it.
++	 */
++	if (resource_size(&tpm_info.res) < TIS_MEM_LEN) {
++		dev_info(&pnp_dev->dev,
++			 "tpm_tis: MMIO region too small (0x%llx), extending to 0x%x\n",
++			 (unsigned long long)resource_size(&tpm_info.res),
++			 TIS_MEM_LEN);
++		tpm_info.res.end = tpm_info.res.start + TIS_MEM_LEN - 1;
++	}
++
+ 	if (pnp_irq_valid(pnp_dev, 0))
+ 		tpm_info.irq = pnp_irq(pnp_dev, 0);
+ 	else
+--
+2.43.0

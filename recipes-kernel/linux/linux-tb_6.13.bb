@@ -20,6 +20,7 @@ SRC_URI = "\
     file://defconfig \
     file://debug.cfg \
     file://efi.cfg \
+    file://0001-tpm_tis-extend-mmio-region-to-cover-all-localities.patch \
 "
 SRCREV_machine = "dbbb5ef0d915435b20290766f99461e31c273b6c"
 SRCREV_meta = "49698cadd79745fa26aa7ef507c16902250c1750"
