@@ -20,7 +20,6 @@ do_install() {
     done
 }
 
-# missing scrypt, oathtool
 RDEPENDS:${PN} += " \
     coreutils \
     gawk \
@@ -31,4 +30,6 @@ RDEPENDS:${PN} += " \
     tpm2-tools \
     qrencode \
     openssl \
+    scrypt \
+    oathtool \
 "
