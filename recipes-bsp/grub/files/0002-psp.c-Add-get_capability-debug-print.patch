@@ -1,0 +1,46 @@
+From 5eb72fe35552ddf51df2a4ba65e4fcd4914c7be9 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Fri, 20 Feb 2026 10:52:22 +0100
+Subject: [PATCH 2/3] psp.c: Add get_capability debug print
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Upstream-Status: Inappropriate [debug]
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+---
+ grub-core/loader/slaunch/psp.c | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/grub-core/loader/slaunch/psp.c b/grub-core/loader/slaunch/psp.c
+index 553e53ed48e6..b9a965bc422e 100644
+--- a/grub-core/loader/slaunch/psp.c
++++ b/grub-core/loader/slaunch/psp.c
+@@ -363,6 +363,24 @@ grub_drtm_get_capability (void)
+   drtm_capability.tmr_alignment = reg_val & 0x00FFFFFF;
+   drtm_capability.tmr_count = (reg_val & 0xFF000000) >> 24;
+ 
++  grub_dprintf ("slaunch", "\n    "
++                "capability:\n\t"
++                "status:         0x%x\n\t"
++                "drtm_enabled:   %d\n\t"
++                "tsme_enabled:   %d\n\t"
++                "anti_rollback:  %d\n\t"
++                "version:        0x%x\n\t"
++                "tmr_alignment:  0x%x\n\t"
++                "tmr_count:      %d\n",
++                status,
++                drtm_capability.drtm_enabled,
++                drtm_capability.tsme_enabled,
++                drtm_capability.anti_rollback_status_bit,
++                drtm_capability.version,
++                drtm_capability.tmr_alignment,
++                drtm_capability.tmr_count
++                );
++
+   return GRUB_ERR_NONE;
+ }
+ 
+-- 
+2.52.0
+

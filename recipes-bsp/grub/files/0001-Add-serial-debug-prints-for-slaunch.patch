@@ -1,0 +1,148 @@
+From da32698ea9f33d8ba58e8263cedcfa8b5adaae7e Mon Sep 17 00:00:00 2001
+From: Julian Prein <julian@druck.dev>
+Date: Wed, 18 Feb 2026 12:29:43 +0100
+Subject: [PATCH 1/3] Add serial debug prints for slaunch
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This is workaround for CPU exceptions when enabling debug prints via
+
+```
+set debug=slaunch
+```
+
+Upstream-Status: Inappropriate [debug]
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+---
+ grub-core/kern/err.c  | 14 +++++++++++++
+ grub-core/kern/misc.c | 47 +++++++++++++++++++++++++++++++++++++++++--
+ include/grub/misc.h   |  2 ++
+ 3 files changed, 61 insertions(+), 2 deletions(-)
+
+diff --git a/grub-core/kern/err.c b/grub-core/kern/err.c
+index 53c734de70e5..b61ef362b883 100644
+--- a/grub-core/kern/err.c
++++ b/grub-core/kern/err.c
+@@ -44,6 +44,20 @@ grub_error (grub_err_t n, const char *fmt, ...)
+   grub_vsnprintf (grub_errmsg, sizeof (grub_errmsg), _(fmt), ap);
+   va_end (ap);
+ 
++  switch (n) {
++    case GRUB_ERR_TEST_FAILURE:
++    case GRUB_ERR_UNKNOWN_DEVICE:
++    case GRUB_ERR_UNKNOWN_FS:
++    case GRUB_ERR_BAD_PART_TABLE:
++    case GRUB_ERR_BAD_FS:
++      /* ignore */
++      break;
++    default:
++      grub_serial_print_nofree (grub_errmsg);
++      grub_serial_print_nofree ("\n");
++      break;
++  }
++
+   return n;
+ }
+ 
+diff --git a/grub-core/kern/misc.c b/grub-core/kern/misc.c
+index 62168d7ded34..58cf65f907db 100644
+--- a/grub-core/kern/misc.c
++++ b/grub-core/kern/misc.c
+@@ -27,6 +27,8 @@
+ #include <grub/types.h>
+ #include <grub/charset.h>
+ #include <grub/backtrace.h>
++#include <grub/i386/io.h>
++#include <grub/ns8250.h>
+ 
+ union printf_arg
+ {
+@@ -244,6 +246,40 @@ grub_debug_enabled (const char * condition)
+   return ret;
+ }
+ 
++static void
++serial_print_char(char c, unsigned short int port)
++{
++  int i = 0;
++  while (i < 100 && !(grub_inb(port + UART_LSR) & UART_EMPTY_TRANSMITTER))
++    ++i;
++
++  if (i < 100)
++    grub_outb(c, port);
++}
++
++static void
++serial_print(const char *str, unsigned short int port)
++{
++  while (*str) {
++    if (*str == '\n')
++      serial_print_char('\r', port);
++    serial_print_char(*str++, port);
++  }
++}
++
++void
++grub_serial_print_nofree(const char *str)
++{
++    serial_print(str, 0x3f8);
++}
++
++void
++grub_serial_print(char *str)
++{
++    grub_serial_print_nofree(str);
++    grub_free(str);
++}
++
+ void
+ grub_real_dprintf (const char *file, const int line, const char *condition,
+ 		   const char *fmt, ...)
+@@ -258,6 +294,13 @@ grub_real_dprintf (const char *file, const int line, const char *condition,
+       va_end (args);
+       grub_refresh ();
+     }
++    else if (!grub_strncmp (condition, "slaunch", 7))
++    {
++      va_start (args, fmt);
++      grub_serial_print_nofree ("slaunch: ");
++      grub_serial_print (grub_xvasprintf (fmt, args));
++      va_end (args);
++    }
+ }
+ 
+ #define PREALLOC_SIZE 255
+@@ -634,14 +677,14 @@ grub_str_sep (const char *s, char *p, char delim, char *r)
+   if (t != NULL && *t != '\0')
+   {
+     char* tmp = t;
+-  
++
+     while (((*p = *t) != '\0') && ((*p = *t) != delim))
+     {
+       p++;
+       t++;
+     }
+     *p = '\0';
+-  
++
+     if (*t != '\0')
+     {
+       t++;
+diff --git a/include/grub/misc.h b/include/grub/misc.h
+index 23bdaee12277..186545f1f694 100644
+--- a/include/grub/misc.h
++++ b/include/grub/misc.h
+@@ -372,6 +372,8 @@ grub_puts (const char *s)
+ int EXPORT_FUNC(grub_puts_) (const char *s);
+ int EXPORT_FUNC(grub_debug_is_enabled) (void);
+ int EXPORT_FUNC(grub_debug_enabled) (const char *condition);
++void EXPORT_FUNC(grub_serial_print_nofree) (const char *str);
++void EXPORT_FUNC(grub_serial_print) (char *str);
+ void EXPORT_FUNC(grub_real_dprintf) (const char *file,
+                                      const int line,
+                                      const char *condition,
+-- 
+2.52.0
+
