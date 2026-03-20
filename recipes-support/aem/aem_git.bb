@@ -10,17 +10,26 @@ SRC_URI = "git://github.com/TrenchBoot/qubes-antievilmaid.git;protocol=https;bra
 SRCREV = "18a0a743462f50363ca83a9946bbc8b399a6e6da"
 
 S = "${WORKDIR}/git"
-FILES:${PN} += "${sbindir}"
 
-ALLOW_EMPTY:${PN} = "1"
+FILES:${PN} += "${localstatedir}/lib/anti-evil-maid"
 
-inherit deploy
-
-do_deploy() {
-    install -d ${DEPLOYDIR}${sbindir}
-    for file in ${S}/sbin/*; do
-        install -m 0755 ${file} ${DEPLOYDIR}${sbindir}
+do_install() {
+    install -d "${D}${sbindir}" "${D}${localstatedir}/lib/anti-evil-maid"
+    for file in "${S}/sbin"/*; do
+        install -m 0755 "${file}" "${D}${sbindir}"
     done
 }
 
-addtask do_deploy after do_install
+RDEPENDS:${PN} += " \
+    coreutils \
+    gawk \
+    bash \
+    trousers-changer \
+    tpm-extra \
+    tpm-tools \
+    tpm2-tools \
+    qrencode \
+    openssl \
+    scrypt \
+    oathtool \
+"
