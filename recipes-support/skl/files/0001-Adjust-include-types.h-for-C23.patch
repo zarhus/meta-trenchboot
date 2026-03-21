@@ -1,0 +1,27 @@
+From f0e3939659852c31ee29e621bbc7a12abdcc2df8 Mon Sep 17 00:00:00 2001
+From: iwanicki92 <iwanicki92@gmail.com>
+Date: Sat, 21 Mar 2026 00:24:48 +0100
+Subject: [PATCH] Adjust include/types.h for C23
+
+Upstream-Status: Pending
+Signed-off-by: iwanicki92 <iwanicki92@gmail.com>
+---
+ include/types.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/include/types.h b/include/types.h
+index e1a815f9976a..cb15e069d4a3 100644
+--- a/include/types.h
++++ b/include/types.h
+@@ -58,7 +58,9 @@ typedef unsigned long       uintptr_t;
+ typedef unsigned long       size_t;
+ typedef long                ssize_t;
+
++#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L
+ typedef _Bool               bool;
++#endif
+
+ #define NULL ((void *)0)
+
+--
+2.53.0

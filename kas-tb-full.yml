@@ -1,13 +1,13 @@
 ---
 header:
-  version: 8
+  version: 14
   includes:
     - kas/common.yml
 
 repos:
   meta-virtualization:
     url: https://git.yoctoproject.org/git/meta-virtualization
-    refspec: 54b806b1985f3989722ee308e1073530fe3328c1
+    commit: 8f03a0cc8950ef5d5e4f11d9ae494946d1991e45
 
 distro: tb-xen-distro
 machine: genericx86-64

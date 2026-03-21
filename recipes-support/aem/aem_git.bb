@@ -9,8 +9,6 @@ LIC_FILES_CHKSUM = "file://anti-evil-maid.spec.in;md5=7659fd73309def53b6048214f4
 SRC_URI = "git://github.com/TrenchBoot/qubes-antievilmaid.git;protocol=https;branch=main"
 SRCREV = "18a0a743462f50363ca83a9946bbc8b399a6e6da"
 
-S = "${WORKDIR}/git"
-
 ALLOW_EMPTY:${PN} = "1"
 
 inherit deploy

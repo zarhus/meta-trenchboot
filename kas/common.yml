@@ -1,24 +1,40 @@
 ---
 header:
-  version: 8
+  version: 14
   includes:
     - cache.yml
 
 repos:
   meta-trenchboot:
 
-  poky:
-    url: https://github.com/zarhus/poky.git
-    refspec: 0bb7dda99977a3366a0e2f55473dd516eec57346
+  bitbake:
+    url: https://git.openembedded.org/bitbake
+    commit: 7af7e04f3adc8ba144d9e2e6b37ed4ddb3b59df0
+    layers:
+      .: disabled
+
+  openembedded-core:
+    url: https://git.openembedded.org/openembedded-core
+    commit: 21314665e198c1abe458d0bad5c4d14d4c3ad856
     layers:
       meta:
+    patches:
+      biosplusefi:
+        repo: meta-trenchboot
+        path: patches/0001-wic-bootimg_efi.py-use-hdd-as-workdir-instead-of-hdd.patch
+
+  meta-yocto:
+    url: https://git.yoctoproject.org/meta-yocto
+    commit: 691ff0fbeab54eceb26d90140d7a8f672532235b
+    layers:
       meta-poky:
       meta-yocto-bsp:
 
   meta-openembedded:
     url: https://git.openembedded.org/meta-openembedded
-    refspec: a72010b414ee3d73888ac9cb4e310e8f05e13aea
+    commit: 6f989b75a08aacdcec1edb761da5559d3443c1ef
     layers:
+      meta-initramfs:
       meta-oe:
       meta-networking:
       meta-filesystems:
@@ -27,13 +43,13 @@ repos:
 
   meta-security:
     url: https://git.yoctoproject.org/meta-security
-    refspec: 11ea91192d43d7c2b0b95a93aa63ca7e73e38034
+    commit: 18c6a7b5d836cc35c5131e33449b786111eceaf5
     layers:
       meta-tpm:
 
   meta-dasharo:
     url: https://github.com/Dasharo/meta-dasharo
-    refspec: eccba1ec830aded5d2d9a85e9ceeae596196a4c2
+    commit: c01dd496ff03617c97cfbec4fc4190eea85fd3af
 
 bblayers_conf_header:
   standard: |
@@ -49,7 +65,7 @@ local_conf_header:
     USER_CLASSES = "buildstats"
     PATCHRESOLVE = "noop"
   debug-tweaks: |
-    EXTRA_IMAGE_FEATURES = "debug-tweaks"
+    EXTRA_IMAGE_FEATURES = "allow-empty-password allow-root-login empty-root-password post-install-logging"
   diskmon: |
     BB_DISKMON_DIRS = "\
         STOPTASKS,${TMPDIR},1G,100K \
