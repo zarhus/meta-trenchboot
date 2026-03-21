@@ -8,12 +8,13 @@ SRC_URI = "file://${UNZIPPED_DIR}.zip"
 SRC_URI[sha256sum] = "4a4696bfa855b711416a0fedbe2b1fa9390bde9ce0162e3044132f1b5d328629"
 
 ALLOW_EMPTY:${PN} = "1"
+S = "${UNPACKDIR}"
 
 inherit deploy
 
 do_deploy() {
     install -d ${DEPLOYDIR}/acm
-    for file in ${WORKDIR}/${UNZIPPED_DIR}/*.bin
+    for file in ${S}/${UNZIPPED_DIR}/*.bin
     do
         install -m 0600 ${file} ${DEPLOYDIR}/acm/
     done

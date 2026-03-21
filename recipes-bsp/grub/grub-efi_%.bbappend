@@ -11,3 +11,5 @@ GRUB_BUILDIN = " \
     slaunch search_label multiboot2 echo ls reboot chain \
     at_keyboard \
 "
+
+S = "${UNPACKDIR}/${BP}"

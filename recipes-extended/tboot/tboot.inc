@@ -49,7 +49,6 @@ sysroot_stage_all:append:class-target() {
 }
 
 addtask deploy after do_install before do_build
-addtask deploy after do_install before do_build
 
 PACKAGES =+ " \
     ${PN}-grub \

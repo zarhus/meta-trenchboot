@@ -25,3 +25,6 @@ IMAGE_ROOTFS_EXTRA_SPACE:append = "${@bb.utils.contains("DISTRO_FEATURES", "syst
 # not showing duplicate boot partitions or mounting wrong partitions if done
 # with the use of PARTUUID
 SOURCE_DATE_EPOCH = "1234"
+
+GRUB_PREFIX_PATH = "/grub"
+WICVARS:append = " GRUB_PREFIX_PATH"

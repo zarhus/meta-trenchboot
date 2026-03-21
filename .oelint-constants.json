@@ -6,12 +6,14 @@
     "filesystems-layer",
     "meta-python",
     "perl-layer",
-    "yoctobsp"
+    "yoctobsp",
+    "virtualization-layer"
 
   ],
   "variables": {
     "known": [
-      "lcl_maybe_fortify"
+      "lcl_maybe_fortify",
+      "GRUB_PREFIX_PATH"
     ],
     "renamed": {}
   }
