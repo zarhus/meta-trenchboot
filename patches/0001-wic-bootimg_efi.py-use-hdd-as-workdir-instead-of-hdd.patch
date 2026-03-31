@@ -1,0 +1,77 @@
+From fc981b8afba94d32e557b8e4ea33377aca1ef928 Mon Sep 17 00:00:00 2001
+From: iwanicki92 <iwanicki92@gmail.com>
+Date: Sat, 21 Mar 2026 12:57:49 +0100
+Subject: [PATCH] wic: bootimg_efi.py: use /hdd as workdir instead of /hdd/boot
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This change is done to make bootimg_efi plugin work with
+bootimg_biosplusefi. Without it resulting EFI partition has wrong
+structure (EFI is under /boot/EFI instead of /EFI):
+
+/
+└── boot
+    └── EFI
+        └── BOOT
+
+Change works with bootimg_biosplusefi and bootimg_efi plugins.
+
+Upstream-Status: Pending
+Signed-off-by: iwanicki92 <iwanicki92@gmail.com>
+---
+ scripts/lib/wic/plugins/source/bootimg_efi.py | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/scripts/lib/wic/plugins/source/bootimg_efi.py b/scripts/lib/wic/plugins/source/bootimg_efi.py
+index 99cc34454cad..77d5b175c07f 100644
+--- a/scripts/lib/wic/plugins/source/bootimg_efi.py
++++ b/scripts/lib/wic/plugins/source/bootimg_efi.py
+@@ -116,9 +116,9 @@ class BootimgEFIPlugin(SourcePlugin):
+
+             grubefi_conf += "}\n"
+
+-        logger.debug("Writing grubefi config %s/hdd/boot/EFI/BOOT/grub.cfg",
++        logger.debug("Writing grubefi config %s/hdd/EFI/BOOT/grub.cfg",
+                      cr_workdir)
+-        cfg = open("%s/hdd/boot/EFI/BOOT/grub.cfg" % cr_workdir, "w")
++        cfg = open("%s/hdd/EFI/BOOT/grub.cfg" % cr_workdir, "w")
+         cfg.write(grubefi_conf)
+         cfg.close()
+
+@@ -217,7 +217,7 @@ class BootimgEFIPlugin(SourcePlugin):
+         """
+         Called before do_prepare_partition(), creates loader-specific config
+         """
+-        hdddir = "%s/hdd/boot" % cr_workdir
++        hdddir = "%s/hdd" % cr_workdir
+
+         install_cmd = "install -d %s/EFI/BOOT" % hdddir
+         exec_cmd(install_cmd)
+@@ -302,7 +302,7 @@ class BootimgEFIPlugin(SourcePlugin):
+
+         staging_kernel_dir = kernel_dir
+
+-        hdddir = "%s/hdd/boot" % cr_workdir
++        hdddir = "%s/hdd" % cr_workdir
+
+         kernel = get_bitbake_var("KERNEL_IMAGETYPE")
+         if get_bitbake_var("INITRAMFS_IMAGE_BUNDLE") == "1":
+@@ -329,13 +329,13 @@ class BootimgEFIPlugin(SourcePlugin):
+
+         try:
+             if source_params['loader'] == 'grub-efi':
+-                shutil.copyfile("%s/hdd/boot/EFI/BOOT/grub.cfg" % cr_workdir,
++                shutil.copyfile("%s/hdd/EFI/BOOT/grub.cfg" % cr_workdir,
+                                 "%s/grub.cfg" % cr_workdir)
+                 for mod in [x for x in os.listdir(kernel_dir) if x.startswith("grub-efi-")]:
+                     cp_cmd = "cp -v -p %s/%s %s/EFI/BOOT/%s" % (kernel_dir, mod, hdddir, mod[9:])
+                     exec_cmd(cp_cmd, True)
+                 shutil.move("%s/grub.cfg" % cr_workdir,
+-                            "%s/hdd/boot/EFI/BOOT/grub.cfg" % cr_workdir)
++                            "%s/hdd/EFI/BOOT/grub.cfg" % cr_workdir)
+             elif source_params['loader'] == 'systemd-boot':
+                 for mod in [x for x in os.listdir(kernel_dir) if x.startswith("systemd-")]:
+                     cp_cmd = "cp -v -p %s/%s %s/EFI/BOOT/%s" % (kernel_dir, mod, hdddir, mod[8:])
+--
+2.53.0

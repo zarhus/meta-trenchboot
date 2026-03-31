@@ -1,0 +1,28 @@
+From fdbac965997adcb8a43fdd7cb3c22a14456e45d1 Mon Sep 17 00:00:00 2001
+From: Kas User <kas@example.com>
+Date: Thu, 19 Mar 2026 17:56:34 +0000
+Subject: [PATCH] x86: sl_main.c: cast pointer to (const u*) to fix
+ -Wincompatible-pointer-types
+
+Upstream-Status: Pending
+Signed-off-by: Kas User <kas@example.com>
+---
+ arch/x86/boot/compressed/sl_main.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/x86/boot/compressed/sl_main.c b/arch/x86/boot/compressed/sl_main.c
+index 4d7367614cc3..af9539e2737c 100644
+--- a/arch/x86/boot/compressed/sl_main.c
++++ b/arch/x86/boot/compressed/sl_main.c
+@@ -603,7 +603,7 @@ static void sl_extend_slrt(struct slr_policy_entry *entry)
+ 			amd_tmp.slrt_base = 0;
+ 
+ 			sl_tpm_extend_evtlog(entry->pcr, TXT_EVTYPE_SLAUNCH,
+-					     &amd_tmp, sizeof(amd_tmp),
++					     (const u8 *)&amd_tmp, sizeof(amd_tmp),
+ 					     entry->evt_info);
+ 		}
+ 	}
+-- 
+2.39.2
+

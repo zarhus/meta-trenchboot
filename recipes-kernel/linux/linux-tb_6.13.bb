@@ -8,8 +8,10 @@ SECTION = "kernel"
 LICENSE = "GPL-2.0-only"
 LIC_FILES_CHKSUM = "file://COPYING;md5=6bc538ed5bd9a7fc9398086aedcd7e46"
 
-DEPENDS += "${@bb.utils.contains('ARCH', 'x86', 'elfutils-native', '', d)}"
-DEPENDS += "openssl-native util-linux-native coreutils-native"
+DEPENDS += " \
+    ${@bb.utils.contains('ARCH', 'x86', 'elfutils-native', '', d)} \
+    openssl-native util-linux-native coreutils-native \
+"
 
 PV = "6.13-rc3"
 KBRANCH = "linux-sl-6.13-v12-amd-no-psp"
@@ -20,12 +22,15 @@ SRC_URI = "\
     file://defconfig \
     file://debug.cfg \
     file://efi.cfg \
+    file://0001-x86-sl_main.c-cast-pointer-to-const-u-to-fix-Wincomp.patch \
+    file://0002-include-linux-Adjust-headers-for-C23.patch \
 "
 SRCREV_machine = "dbbb5ef0d915435b20290766f99461e31c273b6c"
 SRCREV_meta = "49698cadd79745fa26aa7ef507c16902250c1750"
 
 LINUX_VERSION ?= "6.13-rc3"
 
+# nooelint: oelint.vars.mispell.unknown
 KCONFIG_MODE = "--alldefconfig"
 
 COMPATIBLE_MACHINE:pcengines-apux = "pcengines-apux"

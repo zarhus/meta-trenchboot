@@ -11,47 +11,48 @@ ci:
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
       - id: check-added-large-files
       - id: check-merge-conflict
       - id: check-symlinks
       - id: detect-private-key
       - id: end-of-file-fixer
+        exclude: .*\.patch$
       - id: trailing-whitespace
         exclude: .*\.patch$
       - id: mixed-line-ending
         exclude: .*\.patch$
 
   - repo: https://github.com/talos-systems/conform
-    rev: v0.1.0-alpha.30
+    rev: v0.1.0-alpha.31
     hooks:
       - id: conform
         stages:
           - commit-msg
 
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.3.0
+    rev: v2.4.1
     hooks:
       - id: codespell
 
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.35.1
+    rev: v1.38.0
     hooks:
       - id: yamllint
         args: [-c=.yamllint]
 
   - repo: https://github.com/koalaman/shellcheck-precommit
-    rev: v0.10.0
+    rev: v0.11.0
     hooks:
       - id: shellcheck
         args: ["--severity=warning"]
 
   - repo: https://github.com/priv-kweihmann/oelint-adv
-    rev: 5.7.2
+    rev: 9.3.3
     hooks:
       - id: oelint-adv
-        args: [--rulefile=.oelint-ruleset.json, --hide=info, --quiet, --fix]
+        args: [--rulefile=.oelint-ruleset.json, --hide=info, --quiet, --fix, --constantmods=+.oelint-constants.json]
         name: Advanced oelint
         description: Based on the OpenEmbedded Styleguide and work done by oe-stylize-tool this module offers a (nearly) complete linter for bitbake-recipes.
         entry: oelint-adv
@@ -60,7 +61,7 @@ repos:
         files: .*\.(bb)|(bbappend)|(bbclass)$
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.41.0
+    rev: v0.47.0
     hooks:
       - id: markdownlint
       - id: markdownlint-fix
