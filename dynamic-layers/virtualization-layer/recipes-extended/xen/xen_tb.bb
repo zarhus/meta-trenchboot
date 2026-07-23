@@ -7,6 +7,16 @@ require recipes-extended/xen/xen.inc
 require recipes-extended/xen/xen-hypervisor.inc
 
 SRC_URI:append = " file://xen.cfg"
+# Seed Xen's configuration to exclude debug information as it breaks something
+# in case of Xen.efi and fails like this (not TrenchBoot-related):
+# (XEN) *** Building a PV Dom0 ***
+# (XEN) ELF: not an ELF binary
+# (XEN)
+# (XEN) ****************************************
+# (XEN) Panic on CPU 0:
+# (XEN) Could not construct d0
+# (XEN) ****************************************
+SRC_URI:append = " file://fragment.cfg"
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
