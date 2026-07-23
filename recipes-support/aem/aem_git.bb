@@ -6,6 +6,10 @@ LICENSE = "GPL-2.0-or-later"
 # There is no license file, but this one states "GPL" license.
 LIC_FILES_CHKSUM = "file://anti-evil-maid.spec.in;md5=7659fd73309def53b6048214f429b665"
 
+FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
+
+SRC_URI:append = " file://0001-sbin-anti-evil-maid-dump-evt-log-update-for-v4-patch.patch"
+
 SRC_URI = "git://github.com/TrenchBoot/qubes-antievilmaid.git;protocol=https;branch=main"
 SRCREV = "18a0a743462f50363ca83a9946bbc8b399a6e6da"
 
