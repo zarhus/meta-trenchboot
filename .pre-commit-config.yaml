@@ -35,6 +35,7 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell
+        exclude: .*\.patch$
 
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.38.0
