@@ -1,0 +1,63 @@
+From 15c445a0be697f805c13ab080924b68a95d30f96 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Wed, 16 Sep 2026 17:58:28 +0200
+Subject: [PATCH] slaunch: skinit: end the PSP TMR at the top of system memory
+
+The TMR walk took the highest end address over every descriptor in the
+memory map. On the Gigabyte MZ33-AR1 the EFI memory map lists the PCIe
+configuration space window at 0x3FFB00000000, so the TMR requested ran
+to 0x3FFB20000000, 64 TiB above the top of DRAM at 0x84DBC0000.
+
+The TMR protects the system memory the SKL and the DLME live in, so
+skip MMIO, MMIO port space and PAL code descriptors in the EFI walk,
+and count only available, ACPI reclaimable and NVS entries in the
+Multiboot2 basic map, where MMIO appears as reserved.
+---
+ grub-core/loader/slaunch/skinit.c | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/grub-core/loader/slaunch/skinit.c b/grub-core/loader/slaunch/skinit.c
+index 2463e804d..635f64ed2 100644
+--- a/grub-core/loader/slaunch/skinit.c
++++ b/grub-core/loader/slaunch/skinit.c
+@@ -116,7 +116,11 @@ grub_skinit_prepare_cpu (void)
+   return GRUB_ERR_NONE;
+ }
+ 
+-/* Highest end address of any descriptor in an EFI memory map. */
++/*
++ * Highest end address of any system memory descriptor in an EFI memory map.
++ * MMIO ranges are skipped: the TMR protects DRAM, and a PCIe configuration
++ * space window sits far above it, at 0x3FFB00000000 on EPYC 9005 boards.
++ */
+ grub_uint64_t
+ grub_skinit_efi_mmap_end (grub_addr_t map, grub_size_t map_size, grub_size_t desc_size)
+ {
+@@ -130,6 +134,11 @@ grub_skinit_efi_mmap_end (grub_addr_t map, grub_size_t map_size, grub_size_t des
+   for (; (grub_addr_t) desc + desc_size <= map_end;
+        desc = (grub_efi_memory_descriptor_t *) ((char *) desc + desc_size))
+     {
++      if (desc->type == GRUB_EFI_MEMORY_MAPPED_IO
++          || desc->type == GRUB_EFI_MEMORY_MAPPED_IO_PORT_SPACE
++          || desc->type == GRUB_EFI_PAL_CODE)
++        continue;
++
+       desc_end = desc->physical_start + (desc->num_pages << 12);
+       if (desc_end > end)
+         end = desc_end;
+@@ -185,6 +194,12 @@ mb2_mmap_end (grub_uint64_t mbi_base)
+             {
+               struct multiboot_mmap_entry *e = (struct multiboot_mmap_entry *) entry;
+ 
++              /* The basic map marks MMIO as reserved, so only RAM types count. */
++              if (e->type != MULTIBOOT_MEMORY_AVAILABLE
++                  && e->type != MULTIBOOT_MEMORY_ACPI_RECLAIMABLE
++                  && e->type != MULTIBOOT_MEMORY_NVS)
++                continue;
++
+               if (e->addr + e->len > tag_end)
+                 tag_end = e->addr + e->len;
+             }
+-- 
+2.55.0
+
