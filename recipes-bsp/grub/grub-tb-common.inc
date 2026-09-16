@@ -7,6 +7,7 @@ SRC_URI = " \
            git://github.com/coreutils/gnulib;name=gnulib;branch=${BRANCH_gnulib};protocol=https;destsuffix=git/gnulib \
            file://0001-psp.c-Set-MSI-PRO-B850-and-Turin-CCP-ASP-PSP-version.patch \
            file://0002-slaunch-skinit-size-the-PSP-TMR-from-the-boot-path-memory-map.patch \
+           file://0003-slaunch-skinit-end-the-PSP-TMR-at-the-top-of-system-memory.patch \
           "
 
 BRANCH_grub = "tb-dev"
