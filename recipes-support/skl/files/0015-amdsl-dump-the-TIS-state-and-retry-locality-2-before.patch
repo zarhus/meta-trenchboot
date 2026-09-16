@@ -1,0 +1,79 @@
+From 4de97d83432cbfb9cc09a81c8734834aad9b1118 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Wed, 16 Sep 2026 19:25:52 +0200
+Subject: [PATCH] amdsl: dump the TIS state and retry locality 2 before the
+ post-extend PCR read
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+In log 7 every PCR read right after DRTM_CMD_EXTEND_OSSL_DIGEST failed
+with -EAGAIN although locality 2 had been granted. Print TPM_ACCESS for
+every locality and TPM_STS for locality 2 first, relinquish, wait 100 ms
+and request the locality again, then read at locality 2 and at locality
+0, so the next log shows the interface state the PSP left behind.
+
+Upstream-Status: Inappropriate [debug]
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+---
+ include/psp.h |  2 ++
+ main.c        | 14 +++++++++++++-
+ psp.c         |  2 +-
+ 3 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/include/psp.h b/include/psp.h
+index f6d2b6d..8eacd88 100644
+--- a/include/psp.h
++++ b/include/psp.h
+@@ -89,6 +89,8 @@ bool drtm_extend_ossl_digest(u64 addr, u64 size);
+ 
+ bool drtm_launch(void);
+ 
++void drtm_udelay(int us);
++
+ bool drtm_get_cap(void);
+ 
+ #endif /* AMDSL */
+diff --git a/main.c b/main.c
+index dd72ff1..a8de72d 100644
+--- a/main.c
++++ b/main.c
+@@ -533,9 +533,21 @@ static asm_return_t amdsl_launch()
+         print("DRTM: skl_linux: failed to extend OSSL digest\n");
+     }
+ 
+-    /* Shows which PCR the OSSL digest went to; locality 2 is held here. */
++    /*
++     * Shows which PCR the OSSL digest went to. The PSP used the TPM during the
++     * extend, so dump the interface state first, give the TPM a moment, and
++     * request locality 2 again before reading.
++     */
++    print_tpm_access("after DRTM_CMD_EXTEND_OSSL_DIGEST");
++    print("AMDSL: TPM_STS at locality 2 = ");
++    print_u64(tpm_read8(STS(2)));
++    print("\n");
++    tpm_relinquish_locality(tpm);
++    drtm_udelay(100000);
+     print("AMDSL: PCRs after DRTM_CMD_EXTEND_OSSL_DIGEST\n");
+     print_pcrs_at(tpm, 2);
++    print_pcrs_at(tpm, 0);
++    tpm_request_locality(tpm, 2);
+ 
+     ret.dlme_entry = _p(dl_info->dlme_base + dl_info->dlme_entry);
+     ret.dlme_arg = _p(amd_info->boot_params_base);
+diff --git a/psp.c b/psp.c
+index 618de1d..3cf0562 100644
+--- a/psp.c
++++ b/psp.c
+@@ -79,7 +79,7 @@ const struct pci_psp_device psp_devs_list[] = {
+ static bool init_drtm_interface(u64 base_addr, psp_version_t psp_version);
+ static bool drtm_wait_for_psp_ready(u32 *status);
+ 
+-static void drtm_udelay(int us)
++void drtm_udelay(int us)
+ {
+     while (us--)
+         io_delay();
+-- 
+2.55.0
+

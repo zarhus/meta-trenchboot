@@ -1,0 +1,158 @@
+From b79e8f911da2a6733813a32f0445eec5312de6ed Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Wed, 16 Sep 2026 16:30:33 +0200
+Subject: [PATCH] amdsl: print the launch inputs and PCR 17 around
+ DRTM_CMD_LAUNCH
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+During DRTM_CMD_LAUNCH the ASP hashes the SKL header and code with
+SHA-256 and compares the result with PCR 17, which SKINIT extended with
+the same range (58453, section 2, step 4). A mismatch is one of the
+conditions reported as DRTM_LAUNCH_ERROR, and the MZ33-AR1 fails with
+that status on both vendor and Dasharo firmware.
+
+On DEBUG builds print, before the launch command, CPUID leaf 1 EAX, the
+SKL base and measured length, SHA-256 of the measured range, the PCR 17
+value that range yields after SKINIT, and PCR 17 and 18 as read from
+the TPM at locality 2. After a failed launch read the PCRs again and
+dump the four mailbox registers, so the log shows whether the TPM
+holds the value the ASP expects and whether the ASP left anything in
+the response registers.
+
+Upstream-Status: Inappropriate [debug]
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+---
+ main.c | 85 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ psp.c  |  9 +++++++
+ 2 files changed, 94 insertions(+)
+
+diff --git a/main.c b/main.c
+index 9425d7a..867a733 100644
+--- a/main.c
++++ b/main.c
+@@ -252,6 +252,87 @@ typedef struct {
+ 
+ #if defined(AMDSL)
+ 
++#ifdef DEBUG
++static void print_bytes(const u8 *b, unsigned n)
++{
++    static const char hex[] = "0123456789abcdef";
++    char tmp[3] = { 0, 0, 0 };
++
++    while ( n-- )
++    {
++        tmp[0] = hex[*b >> 4];
++        tmp[1] = hex[*b & 0xf];
++        print(tmp);
++        b++;
++    }
++}
++
++static void print_pcr(struct tpm *tpm, u32 pcr, u16 alg, const char *label)
++{
++    u8 digest[SHA256_DIGEST_SIZE];
++    u16 size = sizeof(digest);
++    int rc;
++
++    print(label);
++    rc = tpm_pcr_read(tpm, pcr, alg, digest, &size);
++    if ( rc == 0 )
++        print_bytes(digest, size);
++    else
++    {
++        print("read failed, rc = ");
++        print_u64((u32)rc);
++    }
++    print("\n");
++}
++
++static void print_pcrs(struct tpm *tpm)
++{
++    print_pcr(tpm, 17, TPM_ALG_SHA256, "  PCR17 sha256 = ");
++    print_pcr(tpm, 17, TPM_ALG_SHA1,   "  PCR17 sha1   = ");
++    print_pcr(tpm, 18, TPM_ALG_SHA256, "  PCR18 sha256 = ");
++}
++
++/*
++ * What the PSP compares during DRTM_CMD_LAUNCH: its own SHA-256 of the SKL
++ * header and code against PCR 17, which SKINIT extended with the same range.
++ */
++static void print_launch_inputs(struct tpm *tpm)
++{
++    u8 hash[SHA256_DIGEST_SIZE];
++    u8 ext[2 * SHA256_DIGEST_SIZE];
++    u32 eax;
++
++    asm volatile ("cpuid" : "=a" (eax) : "a" (1) : "ebx", "ecx", "edx");
++    print("AMDSL: CPUID.1 EAX = ");
++    print_u64(eax);
++    print("\n");
++
++    print("AMDSL: SKL base = ");
++    print_u64(_u(_start));
++    print(", measured length = ");
++    print_u64(_end_of_measured - _start);
++    print("\n");
++
++    sha256sum(hash, _start, _end_of_measured - _start);
++    print("AMDSL: SHA256(SKL) = ");
++    print_bytes(hash, sizeof(hash));
++    print("\n");
++
++    memset(ext, 0, SHA256_DIGEST_SIZE);
++    memcpy(ext + SHA256_DIGEST_SIZE, hash, SHA256_DIGEST_SIZE);
++    sha256sum(hash, ext, sizeof(ext));
++    print("AMDSL: expected PCR17 sha256 after SKINIT = ");
++    print_bytes(hash, sizeof(hash));
++    print("\n");
++
++    print("AMDSL: PCRs before DRTM launch:\n");
++    print_pcrs(tpm);
++}
++#else
++static inline void print_launch_inputs(struct tpm *tpm) { }
++static inline void print_pcrs(struct tpm *tpm) { }
++#endif
++
+ static asm_return_t amdsl_launch()
+ {
+     struct slr_entry_dl_info *dl_info;
+@@ -293,8 +374,12 @@ static asm_return_t amdsl_launch()
+         print("AMDSL: PSP NOT found\n");
+     }
+ 
++    print_launch_inputs(tpm);
++
+     if (!drtm_launch()) {
+         print("AMDSL: skl_linux: DRTM launch failed\n");
++        print("AMDSL: PCRs after failed DRTM launch:\n");
++        print_pcrs(tpm);
+     } else {
+         print("AMDSL: skl_linux: DRTM launch successful\n");
+     }
+diff --git a/psp.c b/psp.c
+index a395e9d..9832e0b 100644
+--- a/psp.c
++++ b/psp.c
+@@ -351,6 +351,15 @@ bool drtm_launch(void)
+         print("DRTM: drtm_launch: command failed with status ");
+         drtm_print_status(status);
+         print("\n");
++        print("DRTM: drtm_launch: c2pmsg_72 = ");
++        print_u64(*g_psp_drtm.c2pmsg_72);
++        print(", c2pmsg_93 = ");
++        print_u64(*g_psp_drtm.c2pmsg_93);
++        print(", c2pmsg_94 = ");
++        print_u64(*g_psp_drtm.c2pmsg_94);
++        print(", c2pmsg_95 = ");
++        print_u64(*g_psp_drtm.c2pmsg_95);
++        print("\n");
+         return false;
+     }
+ 
+-- 
+2.55.0
+

@@ -1,0 +1,85 @@
+From 520bd832c9732e8152e754fbbebb967290876170 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Wed, 16 Sep 2026 20:29:18 +0200
+Subject: [PATCH] amdsl: hold no TPM locality during DRTM_CMD_LAUNCH
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The DRTM service opens locality 3 to read and extend PCR 17 during the
+launch command. TIS grants a higher locality only while no lower one is
+active, so the SKL relinquishes its locality before issuing the command
+and requests locality 2 again afterwards. The service keeps localities 1
+and 2 locked until the launch succeeds, which is why PCR reads at
+locality 2 returned -EAGAIN both before and after the command.
+
+tis_request_locality() treats an all-ones TPM_ACCESS read as not granted.
+Reserved bit 6 is set in that value, and it is what a locality the
+chipset does not decode for the host returns.
+
+Upstream-Status: Pending
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+---
+ main.c       | 10 ++++++++++
+ tpmlib/tis.c | 10 ++++++++--
+ 2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/main.c b/main.c
+index 867a733..9c02cd8 100644
+--- a/main.c
++++ b/main.c
+@@ -376,6 +376,14 @@ static asm_return_t amdsl_launch()
+ 
+     print_launch_inputs(tpm);
+ 
++    /*
++     * The DRTM service opens locality 3 to read and extend PCR 17. TIS grants
++     * a higher locality only when no lower one is active, so the host holds
++     * no locality while the command runs. Locality 2 is locked by the DRTM
++     * service until the launch succeeds, so it is requested afterwards.
++     */
++    tpm_relinquish_locality(tpm);
++
+     if (!drtm_launch()) {
+         print("AMDSL: skl_linux: DRTM launch failed\n");
+         print("AMDSL: PCRs after failed DRTM launch:\n");
+@@ -384,6 +392,8 @@ static asm_return_t amdsl_launch()
+         print("AMDSL: skl_linux: DRTM launch successful\n");
+     }
+ 
++    tpm_request_locality(tpm, 2);
++
+     if (!drtm_extend_ossl_digest((u64)dl_info->dlme_base, dl_info->dlme_size)) {
+         print("DRTM: skl_linux: failed to extend OSSL digest\n");
+     }
+diff --git a/tpmlib/tis.c b/tpmlib/tis.c
+index b405f88..a8e5b00 100644
+--- a/tpmlib/tis.c
++++ b/tpmlib/tis.c
+@@ -58,6 +58,8 @@ void tis_relinquish_locality(void)
+ 
+ u8 tis_request_locality(u8 l)
+ {
++	u8 access;
++
+ 	if (l > TPM_MAX_LOCALITY)
+ 		return TPM_NO_LOCALITY;
+ 
+@@ -68,8 +70,12 @@ u8 tis_request_locality(u8 l)
+ 
+ 	tpm_write8(ACCESS_REQUEST_USE, ACCESS(l));
+ 
+-	/* wait for locality to be granted */
+-	if (tpm_read8(ACCESS(l)) & ACCESS_ACTIVE_LOCALITY)
++	/*
++	 * A locality the chipset does not decode for the host reads as all
++	 * ones, which has the reserved bit 6 set. Treat that as not granted.
++	 */
++	access = tpm_read8(ACCESS(l));
++	if (access != 0xff && (access & ACCESS_ACTIVE_LOCALITY))
+ 		locality = l;
+ 
+ 	return locality;
+-- 
+2.55.0
+

@@ -1,0 +1,148 @@
+From 0900e1291ba5d5e155826495f81996d7acb826cd Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Wed, 16 Sep 2026 17:13:09 +0200
+Subject: [PATCH] amdsl: print the whole-image hash and the TMR inputs GRUB
+ used
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+With DEBUG the SKL prints two more things before DRTM_CMD_LAUNCH.
+
+The SHA-256 of the whole image, header through key token, taken from
+memory. PCR 17 covers the measured part only, so this is the check that
+the signature header, signature and key token are intact where the PSP
+reads them. It compares with sha256sum of skl.bin.
+
+The EFI memory map fields GRUB read to size the TMR. GRUB takes them
+from the Linux boot params, and on an EFI Xen boot that pointer is NULL,
+so the fields come from physical 0x1c0 to 0x1df. The SKL dumps those
+bytes, repeats GRUB's walk when the pointer is usable, and prints the
+resulting TMR end next to the SKL end. A TMR that ends below the SKL
+fails the "SKL within the TMR range" check of the launch command.
+
+The first TPM_ACCESS dump moves before the TIS init, so it shows which
+locality the firmware or GRUB left active.
+
+Upstream-Status: Inappropriate [debug]
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+---
+ main.c | 87 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 86 insertions(+), 1 deletion(-)
+
+diff --git a/main.c b/main.c
+index 2178bf3..0a81398 100644
+--- a/main.c
++++ b/main.c
+@@ -333,6 +333,87 @@ static void print_pcrs_at(struct tpm *tpm, u8 l)
+     print_pcrs(tpm);
+ }
+ 
++/*
++ * SHA-256 of the whole image the PSP authenticates: header, code, signature
++ * header, signature and key token. PCR 17 covers only the measured part, so
++ * this is the check that the signature and key token bytes are intact in
++ * memory. Compare with sha256sum of skl.bin.
++ */
++static void print_image_hash(void)
++{
++    u8 hash[SHA256_DIGEST_SIZE];
++    u32 total = *(u32 *)(_start + 0x18);
++
++    print("AMDSL: total length = ");
++    print_u64(total);
++    print(", SHA256(image) = ");
++    if ( total > 0x10000 )
++    {
++        print("skipped, total length above 64 KiB\n");
++        return;
++    }
++    sha256sum(hash, _start, total);
++    print_bytes(hash, sizeof(hash));
++    print("\n");
++}
++
++/*
++ * GRUB derives the TMR end from the EFI memory map fields of the Linux boot
++ * params. On an EFI Xen boot the boot params pointer is NULL, so the fields
++ * are read from physical 0x1c0 to 0x1df. Dump them and redo GRUB's walk, which
++ * takes the end of the last descriptor, so the TMR the PSP was given is known.
++ */
++static void print_grub_tmr_inputs(void)
++{
++    u32 efi_info_addr = 0x1c0;
++    const u32 *efi_info;
++    u32 desc_size, mmap_size;
++    u64 mmap, tmr_end = 0;
++    const u8 *desc, *end;
++
++    /* Keep the compiler from treating the fixed address as a null object. */
++    asm volatile ("" : "+r" (efi_info_addr));
++    efi_info = (const u32 *)efi_info_addr;
++    desc_size = efi_info[2];
++    mmap_size = efi_info[5];
++    mmap = efi_info[4] | ((u64)efi_info[7] << 32);
++
++    print("AMDSL: GRUB efi_info at 0x1c0: ");
++    print_bytes((const u8 *)efi_info, 0x20);
++    print("\n");
++    print("AMDSL: GRUB efi_mmap = ");
++    print_u64(mmap);
++    print(", size = ");
++    print_u64(mmap_size);
++    print(", desc size = ");
++    print_u64(desc_size);
++    print("\n");
++
++    if ( mmap == 0 || mmap_size == 0 )
++        tmr_end = 0;
++    else if ( mmap + mmap_size > 0x100000000ULL || mmap_size > 0x10000
++              || desc_size < 40 || desc_size > 0x100 )
++    {
++        print("AMDSL: GRUB memory map pointer not walkable from SKL\n");
++        return;
++    }
++    else
++    {
++        desc = (const u8 *)(u32)mmap;
++        end = desc + mmap_size;
++        for ( ; desc < end; desc += desc_size )
++            tmr_end = *(const u64 *)(desc + 8) + (*(const u64 *)(desc + 24) << 12);
++    }
++
++    print("AMDSL: GRUB tmr_end = ");
++    print_u64(tmr_end);
++    print(", TMR units of 64 KiB = ");
++    print_u64((tmr_end + 0xffff) >> 16);
++    print(", SKL end = ");
++    print_u64(_u(_start) + 0x10000);
++    print("\n");
++}
++
+ /*
+  * What the PSP compares during DRTM_CMD_LAUNCH: its own SHA-256 of the SKL
+  * header and code against PCR 17, which SKINIT extended with the same range.
+@@ -366,6 +447,9 @@ static void print_launch_inputs(struct tpm *tpm)
+     print_bytes(hash, sizeof(hash));
+     print("\n");
+ 
++    print_image_hash();
++    print_grub_tmr_inputs();
++
+     print("AMDSL: PCRs before DRTM launch\n");
+     print_pcrs_at(tpm, 2);
+     print_pcrs_at(tpm, 0);
+@@ -385,8 +469,9 @@ static asm_return_t amdsl_launch()
+ 
+     print("Enter amdsl_launch()\n");
+ 
+-    tpm = enable_tpm();
+     print_tpm_access("at entry");
++    tpm = enable_tpm();
++    print_tpm_access("after TIS init");
+     tpm_request_locality(tpm, 2);
+     print_tpm_access("after requesting locality 2");
+     event_log_init(tpm);
+-- 
+2.55.0
+

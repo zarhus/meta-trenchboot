@@ -1,0 +1,45 @@
+From 277d48c6a302d4f1e3ddf8be2ec962d465f063a7 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Wed, 16 Sep 2026 18:48:39 +0200
+Subject: [PATCH] amdsl: read PCR 17 to 20 after DRTM_CMD_EXTEND_OSSL_DIGEST
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The PSP hashes the DLME and extends a PCR with the digest. Reading PCR 17
+to 20 through locality 2 after the command shows which register took it,
+so the value can be checked against a local SHA-256 of the image.
+
+Upstream-Status: Inappropriate [debug]
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+---
+ main.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/main.c b/main.c
+index 0a81398..dd72ff1 100644
+--- a/main.c
++++ b/main.c
+@@ -291,6 +291,8 @@ static void print_pcrs(struct tpm *tpm)
+     print_pcr(tpm, 17, TPM_ALG_SHA256, "  PCR17 sha256 = ");
+     print_pcr(tpm, 17, TPM_ALG_SHA1,   "  PCR17 sha1   = ");
+     print_pcr(tpm, 18, TPM_ALG_SHA256, "  PCR18 sha256 = ");
++    print_pcr(tpm, 19, TPM_ALG_SHA256, "  PCR19 sha256 = ");
++    print_pcr(tpm, 20, TPM_ALG_SHA256, "  PCR20 sha256 = ");
+ }
+ 
+ /*
+@@ -531,6 +533,10 @@ static asm_return_t amdsl_launch()
+         print("DRTM: skl_linux: failed to extend OSSL digest\n");
+     }
+ 
++    /* Shows which PCR the OSSL digest went to; locality 2 is held here. */
++    print("AMDSL: PCRs after DRTM_CMD_EXTEND_OSSL_DIGEST\n");
++    print_pcrs_at(tpm, 2);
++
+     ret.dlme_entry = _p(dl_info->dlme_base + dl_info->dlme_entry);
+     ret.dlme_arg = _p(amd_info->boot_params_base);
+ 
+-- 
+2.55.0
+

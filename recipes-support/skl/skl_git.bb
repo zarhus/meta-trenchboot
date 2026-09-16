@@ -14,6 +14,17 @@ SRC_URI = " \
     file://0003-pci.c-use-type-1-accesses-when-MMIO-config-space-lie.patch \
     file://0004-link.lds-align-the-measured-length-to-16-bytes.patch \
     file://0005-Makefile-sign-with-a-PSS-salt-of-the-digest-length.patch \
+    file://0006-head.S-list-family-1Ah-in-the-SOC-flags.patch \
+    file://0007-tpmlib-add-TPM2_PCR_Read.patch \
+    file://0008-amdsl-print-the-launch-inputs-and-PCR-17-around-DRTM.patch \
+    file://0009-amdsl-hold-no-TPM-locality-during-DRTM_CMD_LAUNCH.patch \
+    file://0010-amdsl-dump-TPM_ACCESS-and-read-the-PCRs-at-two-local.patch \
+    file://0011-amdsl-print-the-whole-image-hash-and-the-TMR-inputs-.patch \
+    file://0012-tpmlib-store-the-last-byte-of-a-TIS-response-at-the-.patch \
+    file://0013-psp-wait-up-to-two-minutes-for-DRTM_CMD_EXTEND_OSSL_.patch \
+    file://0014-amdsl-read-PCR-17-to-20-after-DRTM_CMD_EXTEND_OSSL_D.patch \
+    file://0015-amdsl-dump-the-TIS-state-and-retry-locality-2-before.patch \
+    file://0016-amdsl-print-the-SHA-256-of-the-DLME-range-before-the.patch \
 "
 
 BRANCH = "skl-loader-amdsl-noblob"

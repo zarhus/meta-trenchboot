@@ -1,0 +1,77 @@
+From 56dc58f3f14bfd0e181a24198c8bc568d17083bb Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Wed, 16 Sep 2026 19:44:38 +0200
+Subject: [PATCH] amdsl: print the SHA-256 of the DLME range before the OSSL
+ extend
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+After DRTM_CMD_EXTEND_OSSL_DIGEST the PSP extends both PCR 17 and PCR
+18. The range it hashes is the loaded Xen image as the firmware reports
+it, whose contents depend on what Xen's EFI stub wrote before the launch,
+so the digest cannot be rebuilt from the xen.efi file. Hash the same
+memory in SKL right before the command, so the PCR values in the log can
+be matched against it.
+
+Upstream-Status: Inappropriate [debug]
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+---
+ main.c | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)
+
+diff --git a/main.c b/main.c
+index a8de72d..ab45d0c 100644
+--- a/main.c
++++ b/main.c
+@@ -318,6 +318,30 @@ static void print_tpm_access(const char *when)
+     print("\n");
+ }
+ 
++/*
++ * SHA-256 of the DLME range handed to DRTM_CMD_EXTEND_OSSL_DIGEST, taken from
++ * the same memory the PSP reads. Compared with the PCR values after the
++ * command, it shows which register took the digest and in what form.
++ */
++static void print_dlme_hash(const struct slr_entry_dl_info *dl_info)
++{
++    u8 hash[SHA256_DIGEST_SIZE];
++
++    print("AMDSL: SHA256(DLME) over ");
++    print_u64(dl_info->dlme_base);
++    print(" + ");
++    print_u64(dl_info->dlme_size);
++    print(" = ");
++    if ( dl_info->dlme_base + dl_info->dlme_size > 0xffffffffULL )
++    {
++        print("skipped, range above 4 GiB\n");
++        return;
++    }
++    sha256sum(hash, _p((u32)dl_info->dlme_base), dl_info->dlme_size);
++    print_bytes(hash, sizeof(hash));
++    print("\n");
++}
++
+ /* Request the given locality and read the PCRs through it. */
+ static void print_pcrs_at(struct tpm *tpm, u8 l)
+ {
+@@ -459,6 +483,7 @@ static void print_launch_inputs(struct tpm *tpm)
+ #else
+ static inline void print_launch_inputs(struct tpm *tpm) { }
+ static inline void print_pcrs_at(struct tpm *tpm, u8 l) { }
++static inline void print_dlme_hash(const struct slr_entry_dl_info *dl_info) { }
+ static inline void print_tpm_access(const char *when) { }
+ #endif
+ 
+@@ -529,6 +554,8 @@ static asm_return_t amdsl_launch()
+     tpm_request_locality(tpm, 2);
+     print_tpm_access("after re-requesting locality 2");
+ 
++    print_dlme_hash(dl_info);
++
+     if (!drtm_extend_ossl_digest((u64)dl_info->dlme_base, dl_info->dlme_size)) {
+         print("DRTM: skl_linux: failed to extend OSSL digest\n");
+     }
+-- 
+2.55.0
+

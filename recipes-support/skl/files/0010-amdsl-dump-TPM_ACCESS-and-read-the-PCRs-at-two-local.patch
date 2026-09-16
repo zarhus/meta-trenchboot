@@ -1,0 +1,132 @@
+From 469cdd55f0bdb6dc5b3f71f1546df8e54dbd409a Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Wed, 16 Sep 2026 20:29:37 +0200
+Subject: [PATCH] amdsl: dump TPM_ACCESS and read the PCRs at two localities
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Print TPM_ACCESS for localities 0 to 4 at entry, after requesting
+locality 2, before and after DRTM_CMD_LAUNCH, and after requesting
+locality 2 again. Read PCR 17 and 18 at locality 2 and at locality 0
+before and after the launch, so a value is visible while the DRTM
+service holds locality 2 locked.
+
+Upstream-Status: Inappropriate [debug]
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+---
+ main.c | 58 +++++++++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 53 insertions(+), 5 deletions(-)
+
+diff --git a/main.c b/main.c
+index 9c02cd8..2178bf3 100644
+--- a/main.c
++++ b/main.c
+@@ -23,6 +23,7 @@
+ #include <iommu.h>
+ #include "tpmlib/tpm.h"
+ #include "tpmlib/tpm2_constants.h"
++#include "tpmlib/tis.h"
+ #include <sha1sum.h>
+ #include <sha256.h>
+ #include <event_log.h>
+@@ -292,6 +293,46 @@ static void print_pcrs(struct tpm *tpm)
+     print_pcr(tpm, 18, TPM_ALG_SHA256, "  PCR18 sha256 = ");
+ }
+ 
++/*
++ * TPM_ACCESS_x for every locality. Bit 5 is activeLocality, bit 1 is a pending
++ * requestUse, bit 7 is tpmRegValidSts. A read of 0xff means the FCH does not
++ * decode that locality for the host, which is how the DRTM service locks
++ * localities 1 and 2 until DRTM_CMD_LAUNCH succeeds.
++ */
++static void print_tpm_access(const char *when)
++{
++    u8 l;
++
++    print("AMDSL: TPM_ACCESS ");
++    print(when);
++    print(":");
++    for ( l = 0; l <= TPM_MAX_LOCALITY; l++ )
++    {
++        print(" L");
++        print_u64(l);
++        print("=");
++        print_u64(tpm_read8(ACCESS(l)));
++    }
++    print("\n");
++}
++
++/* Request the given locality and read the PCRs through it. */
++static void print_pcrs_at(struct tpm *tpm, u8 l)
++{
++    u8 got = tpm_request_locality(tpm, l);
++
++    print("AMDSL: PCRs at locality ");
++    print_u64(l);
++    if ( got != l )
++    {
++        print(" (request not granted, TPM_ACCESS = ");
++        print_u64(tpm_read8(ACCESS(l)));
++        print(")");
++    }
++    print(":\n");
++    print_pcrs(tpm);
++}
++
+ /*
+  * What the PSP compares during DRTM_CMD_LAUNCH: its own SHA-256 of the SKL
+  * header and code against PCR 17, which SKINIT extended with the same range.
+@@ -325,12 +366,14 @@ static void print_launch_inputs(struct tpm *tpm)
+     print_bytes(hash, sizeof(hash));
+     print("\n");
+ 
+-    print("AMDSL: PCRs before DRTM launch:\n");
+-    print_pcrs(tpm);
++    print("AMDSL: PCRs before DRTM launch\n");
++    print_pcrs_at(tpm, 2);
++    print_pcrs_at(tpm, 0);
+ }
+ #else
+ static inline void print_launch_inputs(struct tpm *tpm) { }
+-static inline void print_pcrs(struct tpm *tpm) { }
++static inline void print_pcrs_at(struct tpm *tpm, u8 l) { }
++static inline void print_tpm_access(const char *when) { }
+ #endif
+ 
+ static asm_return_t amdsl_launch()
+@@ -343,7 +386,9 @@ static asm_return_t amdsl_launch()
+     print("Enter amdsl_launch()\n");
+ 
+     tpm = enable_tpm();
++    print_tpm_access("at entry");
+     tpm_request_locality(tpm, 2);
++    print_tpm_access("after requesting locality 2");
+     event_log_init(tpm);
+ 
+     print("TPM enabled and logging initialized\n");
+@@ -383,16 +428,19 @@ static asm_return_t amdsl_launch()
+      * service until the launch succeeds, so it is requested afterwards.
+      */
+     tpm_relinquish_locality(tpm);
++    print_tpm_access("before DRTM_CMD_LAUNCH");
+ 
+     if (!drtm_launch()) {
+         print("AMDSL: skl_linux: DRTM launch failed\n");
+-        print("AMDSL: PCRs after failed DRTM launch:\n");
+-        print_pcrs(tpm);
+     } else {
+         print("AMDSL: skl_linux: DRTM launch successful\n");
+     }
+ 
++    print_tpm_access("after DRTM_CMD_LAUNCH");
++    print_pcrs_at(tpm, 2);
++    print_pcrs_at(tpm, 0);
+     tpm_request_locality(tpm, 2);
++    print_tpm_access("after re-requesting locality 2");
+ 
+     if (!drtm_extend_ossl_digest((u64)dl_info->dlme_base, dl_info->dlme_size)) {
+         print("DRTM: skl_linux: failed to extend OSSL digest\n");
+-- 
+2.55.0
+

@@ -1,0 +1,64 @@
+From 33ae24bd753ad9303519e5ff607b2ca65826c69c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Wed, 16 Sep 2026 18:09:13 +0200
+Subject: [PATCH] psp: wait up to two minutes for DRTM_CMD_EXTEND_OSSL_DIGEST
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The mailbox wait gives the PSP 50 retries of 100 ms for every command.
+Hashing the DLME is the one command whose work scales with the payload,
+and on the Gigabyte MZ33-AR1 a 7.6 MB Xen image ran past the five
+seconds after a successful launch, so the SKL reported "command failed
+to complete" and moved on. The extend now waits up to 1200 retries. The
+other commands keep the short wait.
+
+Upstream-Status: Pending
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+---
+ psp.c | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/psp.c b/psp.c
+index 9832e0b..618de1d 100644
+--- a/psp.c
++++ b/psp.c
+@@ -246,9 +246,12 @@ static bool init_drtm_interface(u64 base_addr, psp_version_t psp_version)
+     return true;
+ }
+ 
+-static bool drtm_wait_for_psp_ready(u32 *status)
++/* 100 ms per retry. Hashing a multi-megabyte DLME takes the PSP seconds. */
++#define DRTM_WAIT_RETRIES         50
++#define DRTM_EXTEND_WAIT_RETRIES  1200
++
++static bool drtm_wait_for_psp_ready_retries(u32 *status, int retry)
+ {
+-    int retry = 50;
+     u32 reg_val = 0;
+ 
+     while (--retry) {
+@@ -273,6 +276,11 @@ static bool drtm_wait_for_psp_ready(u32 *status)
+     return true;
+ }
+ 
++static bool drtm_wait_for_psp_ready(u32 *status)
++{
++    return drtm_wait_for_psp_ready_retries(status, DRTM_WAIT_RETRIES);
++}
++
+ #ifndef UINT32_MAX
+ #define UINT32_MAX 0xFFFFFFFF
+ #endif
+@@ -313,7 +321,7 @@ bool drtm_extend_ossl_digest(u64 addr, u64 size)
+     *g_psp_drtm.c2pmsg_95 = (u32)(reloc_addr >> 32);
+ 
+     *g_psp_drtm.c2pmsg_72 = (DRTM_CMD_EXTEND_OSSL_DIGEST << DRTM_MBOX_CMD_SHIFT);
+-    if (!drtm_wait_for_psp_ready(&status)) {
++    if (!drtm_wait_for_psp_ready_retries(&status, DRTM_EXTEND_WAIT_RETRIES)) {
+         print("DRTM: drtm_extend_ossl_digest: command failed to complete\n");
+         return false;
+     }
+-- 
+2.55.0
+
