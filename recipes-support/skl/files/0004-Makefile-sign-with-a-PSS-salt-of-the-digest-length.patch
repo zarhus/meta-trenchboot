@@ -1,0 +1,43 @@
+From b8c9568ce16696f600a3127047a6a66dcbaee415 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Tue, 15 Sep 2026 10:25:41 +0200
+Subject: [PATCH 3/3] Makefile: sign with a PSS salt of the digest length
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The PSP verifies the SKL signature with RSA-PSS, SHA-384 and a salt of
+48 bytes, the hash length (AMD publication 58453, DRTM Service
+Integration Guide, appendix G.1). AmdSlSigningTool signs the same way.
+
+openssl dgst picks the salt length from its own default when none is
+given. OpenSSL 3.1 and newer use the digest length, older releases use
+the maximum salt the modulus allows, 462 bytes here. An image signed on
+such a host carries a signature the PSP will not accept.
+
+Pass rsa_pss_saltlen:digest so the signature matches the PSP on every
+OpenSSL version.
+
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+---
+ Makefile | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index d6c71c983478..8bebbc518059 100644
+--- a/Makefile
++++ b/Makefile
+@@ -65,8 +65,8 @@ skl.bin: skl Makefile
+ 	objcopy -O binary -S -R '.note.*' -R '.got.plt' -R '.skl_sig' -R '.skl_pubkey_hdr' -R '.skl_pubkey_modulus' $< $@
+ 	@./sanity_check.sh
+ ifeq ($(AMDSL), y)
+-	# create signature
+-	openssl dgst -sha384 -sign testPrivateKey.pem -out signature_rev.bin -binary -sigopt rsa_padding_mode:pss $@
++	# create signature, RSA-PSS with a salt of the digest length as the PSP expects
++	openssl dgst -sha384 -sign testPrivateKey.pem -out signature_rev.bin -binary -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:digest $@
+ 	# reverse byte order
+ 	xxd -c1 -p signature_rev.bin | tac | xxd -r -p > signature.bin
+ 	# get the modulus for pubkey header, reverse byte order
+-- 
+2.54.0
+

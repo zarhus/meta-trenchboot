@@ -1,0 +1,109 @@
+From cae5c12a75d4f405e91b3d2535cab1589ad74e0c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Tue, 15 Sep 2026 10:00:00 +0200
+Subject: [PATCH 2/3] link.lds: align the measured length to 16 bytes
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+AMD's SKL signing flow rounds the measured length in the SL header up
+to a multiple of 16 bytes and places the "$AS1" signature header at
+that offset. header_tool.py does the rounding in Python, and
+AmdSlSigningTool repeats it in place before hashing (SignPSS rounds the
+byte at offset 2 up to the next 0x10 and carries into offset 3).
+
+The openssl-signed image on this branch aligns _end_of_measured to
+4 bytes only. The length field then ends 8 bytes past a 16-byte
+boundary (0x4028 in the image tested on the Gigabyte MZ33-AR1, 0x40c8
+with the toolchain here) and the signature header sits at an offset a
+tool-signed image never has. That test ended in DRTM_LAUNCH_ERROR with
+PCRs 18 to 20 capped, which is what the PSP does when SKL fails
+authentication.
+
+Align .rodata and _end_of_measured to 16 bytes so the signature header
+follows the measured region at a multiple of 16, as in the tool output.
+
+Discard toolchain .note sections at link time. ld places orphan notes
+right after .rodata, which puts them between the measured region and
+the signature header. The Makefile already strips them from skl.bin, so
+the flat binary keeps the same content and loses the gap.
+
+Assert both properties so a layout drift fails the build.
+
+The other fields the signing tool writes match the header emitted by
+head.S: "$AS1", signed size equal to length + 0x100, SigOption 1, the
+key ID, the size with signature at 0x6c, and the total length at
+offset 0x18 of the SL header. The public key blob matches
+testPublicKey.bin, and the signature over length + 0x100 bytes
+verifies with a digest-length PSS salt, which is what the tool uses.
+
+Related: https://github.com/TrenchBoot/trenchboot-issues/issues/79
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+---
+ link.lds | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/link.lds b/link.lds
+index af49c4687ce7..26a6fad4df96 100644
+--- a/link.lds
++++ b/link.lds
+@@ -29,21 +29,23 @@ SECTIONS
+ 		*(.headers)
+ 		*(.text*)
+ 	}
+-	.rodata : {
++	.rodata : ALIGN(16) {
+ 		*(SORT_BY_ALIGNMENT(.rodata*))
+ 		/*
+ 		 * This is unwritten (as of AMD APM revision 3.42) behavior of SKINIT.
+ 		 * PCR 17 is extended with SKL padded with zeros up to a size that is
+-		 * aligned up to the multiply of 4B. To keep functions in util.sh
+-		 * simple, _end_of_measured is explicitly aligned. This may increase
+-		 * skl.bin size by up to 3 bytes, but it doesn't increase the real size
+-		 * of data sent to TPM to be measured.
++		 * aligned up to the multiply of 4B. AMD's SKL signing tools round the
++		 * measured length up to a multiple of 16B and place the signature
++		 * header at that offset, so _end_of_measured is explicitly aligned to
++		 * 16B. This keeps functions in util.sh simple and gives the PSP the
++		 * layout it expects, at the cost of up to 15 bytes of zero padding
++		 * that SKINIT measures along with the code.
+ 		 *
+ 		 * Note that this padding must be part of .rodata to be included in
+ 		 * skl.bin, both for 'dd' used in util.sh and for checks performed by
+ 		 * GRUB.
+ 		 */
+-		. = ALIGN(4);
++		. = ALIGN(16);
+ 	}
+ 
+ 	_end_of_measured = .;
+@@ -111,8 +113,14 @@ SECTIONS
+ 		*(.data*)
+ 	}
+ 
++	/*
++	 * Toolchain notes (e.g. .note.gnu.property) are orphan sections that ld
++	 * would otherwise place right after .rodata, between the measured region
++	 * and the signature header.
++	 */
+ 	/DISCARD/ : {
+ 		*(.eh_frame*)
++		*(.note.*)
+ 	}
+ }
+ 
+@@ -120,8 +128,11 @@ ASSERT(_end <= 0x10000, "Landing Zone exceeds 64k");
+ ASSERT(SIZEOF(.got) == 0, ".got section not empty - non-hidden symbols used?");
+ ASSERT(SIZEOF(.data) == 0, ".data section not empty - initialized data used?");
+ 
++ASSERT((_end_of_measured & 0xf) == 0, "_end_of_measured not aligned to 16 bytes");
+ ASSERT(!SIZEOF(.skl_sig_hdr) || SIZEOF(.skl_sig_hdr) == 0x100,
+        ".skl_sig_hdr size not 256 bytes");
++ASSERT(!SIZEOF(.skl_sig_hdr) || ADDR(.skl_sig_hdr) == _end_of_measured,
++       ".skl_sig_hdr does not directly follow the measured region");
+ ASSERT(!SIZEOF(.skl_pubkey_hdr) || SIZEOF(.skl_pubkey_hdr) == 0x240,
+        ".skl_pubkey_hdr size not 0x240 bytes");
+ 
+-- 
+2.54.0
+
