@@ -1,0 +1,161 @@
+From 1ca1191f031017c27012ec5dfec737b8d5bb83df Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Wed, 16 Sep 2026 22:40:53 +0200
+Subject: [PATCH] x86/slaunch: lock the DRTM TPM localities on reboot and kexec
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The measured launch leaves TPM localities 1 and 2 open to whatever runs
+next. Xen never closed them, so a kernel started by kexec, or firmware
+after a reboot, could extend the DRTM PCRs.
+
+Issue DRTM_CMD_TPM_LOCALITY_ACCESS through the PSP mailbox and drop the
+mapping, from machine_restart(), machine_halt() and machine_kexec().
+Linux locks the same localities from slaunch_psp_finalize(), reached
+through its reboot notifier and from kernel_kexec().
+
+Xen routes both the ordinary kexec and the crash path through
+machine_kexec(), so a crash kernel also loads with the localities
+locked, at the cost of one mailbox round trip before it starts.
+
+Upstream-Status: Pending
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+---
+ xen/arch/x86/amd_psp.c             | 18 +++++++++++++++++-
+ xen/arch/x86/include/asm/amd_psp.h |  8 ++++++--
+ xen/arch/x86/machine_kexec.c       |  4 ++++
+ xen/arch/x86/shutdown.c            |  7 +++++++
+ 4 files changed, 34 insertions(+), 3 deletions(-)
+
+diff --git a/xen/arch/x86/amd_psp.c b/xen/arch/x86/amd_psp.c
+index 19e737a320..948e15d888 100644
+--- a/xen/arch/x86/amd_psp.c
++++ b/xen/arch/x86/amd_psp.c
+@@ -6,6 +6,9 @@
+  * TMR is the AMD analogue of the Intel PMRs, so it stays until Xen has its own
+  * DMA protection: the release is issued from iov_detect(), after the IOMMUs are
+  * enabled and before setup_IO_APIC() runs check_timer().
++ *
++ * On the way out the DRTM TPM localities are locked, so that a kernel started
++ * by kexec, or firmware after a reboot, cannot reach locality 2.
+  */
+ 
+ #include <xen/cache.h>
+@@ -269,7 +272,7 @@ void __init slaunch_psp_setup(void)
+     /*
+      * Only C2PMSG_72 is mapped. The argument registers C2PMSG_93 through
+      * C2PMSG_95 belong to the commands the bootloader and SKL issue, and
+-     * the release takes no argument.
++     * neither of Xen's two commands takes an argument.
+      */
+     c2pmsg_72 = ioremap(bar + PSP_C2PMSG_72, sizeof(uint32_t));
+     if ( c2pmsg_72 == NULL )
+@@ -307,3 +310,16 @@ bool slaunch_psp_tmr_release(void)
+ 
+     return true;
+ }
++
++void slaunch_psp_finalize(void)
++{
++    if ( !psp_active || c2pmsg_72 == NULL )
++        return;
++
++    if ( !psp_command(DRTM_CMD_TPM_LOCALITY_ACCESS << DRTM_MBOX_CMD_SHIFT,
++                      "DRTM_CMD_TPM_LOCALITY_ACCESS") )
++        printk(XENLOG_ERR "SLAUNCH: DRTM TPM localities are still open\n");
++
++    iounmap(c2pmsg_72);
++    c2pmsg_72 = NULL;
++}
+diff --git a/xen/arch/x86/include/asm/amd_psp.h b/xen/arch/x86/include/asm/amd_psp.h
+index fd0822099e..e8eaef81da 100644
+--- a/xen/arch/x86/include/asm/amd_psp.h
++++ b/xen/arch/x86/include/asm/amd_psp.h
+@@ -7,7 +7,7 @@
+  * The PSP DRTM mailbox. GRUB uses it to set up a Trusted Memory Region over
+  * the memory it launches into, SKL uses it to extend the OS loader digest and
+  * to issue DRTM_CMD_LAUNCH, and Xen uses it to release that TMR once its own
+- * IOMMU is programmed.
++ * IOMMU is programmed and to lock the DRTM TPM localities on the way out.
+  *
+  * C2PMSG_72 carries a command and returns a status in one 32-bit register:
+  *
+@@ -42,10 +42,11 @@
+ #define DRTM_GET_IVRS_TABLE_FAILED      0x0010
+ 
+ /*
+- * The command Xen issues. The bootloader and SKL drive the rest of the
++ * The commands Xen issues. The bootloader and SKL drive the rest of the
+  * interface, see grub-core/loader/slaunch/psp.c and SKL's psp.c.
+  */
+ #define DRTM_CMD_TMR_RELEASE            0x3
++#define DRTM_CMD_TPM_LOCALITY_ACCESS    0x8
+ 
+ /* GRUB sets up one TMR, at index 0. */
+ #define DRTM_TMR_INDEX_0                0
+@@ -66,4 +67,7 @@ bool slaunch_psp_active(void);
+ /* Release TMR 0, dropping the DMA protection GRUB set up over Xen. */
+ bool slaunch_psp_tmr_release(void);
+ 
++/* Lock the DRTM TPM localities and drop the mapping. */
++void slaunch_psp_finalize(void);
++
+ #endif /* _ASM_X86_AMD_PSP_H_ */
+diff --git a/xen/arch/x86/machine_kexec.c b/xen/arch/x86/machine_kexec.c
+index 1dd0c9aad8..57175d3c1b 100644
+--- a/xen/arch/x86/machine_kexec.c
++++ b/xen/arch/x86/machine_kexec.c
+@@ -19,6 +19,7 @@
+ #include <xen/domain_page.h>
+ #include <xen/elfstructs.h>
+ #include <xen/kexec.h>
++#include <asm/amd_psp.h>
+ #include <asm/fixmap.h>
+ #include <asm/hpet.h>
+ #include <asm/page.h>
+@@ -151,6 +152,9 @@ void machine_kexec(struct kexec_image *image)
+     int i;
+     unsigned long reloc_flags = 0;
+ 
++    /* Close the DRTM localities before the next kernel gets to see the TPM. */
++    slaunch_psp_finalize();
++
+     /* We are about to permenantly jump out of the Xen context into the kexec
+      * purgatory code.  We really dont want to be still servicing interupts.
+      */
+diff --git a/xen/arch/x86/shutdown.c b/xen/arch/x86/shutdown.c
+index 32c70505ed..f67a72d030 100644
+--- a/xen/arch/x86/shutdown.c
++++ b/xen/arch/x86/shutdown.c
+@@ -24,6 +24,7 @@
+ #include <asm/io.h>
+ #include <asm/processor.h>
+ #include <asm/mpspec.h>
++#include <asm/amd_psp.h>
+ #include <asm/tboot.h>
+ #include <asm/apic.h>
+ #include <asm/guest.h>
+@@ -134,6 +135,9 @@ void machine_halt(void)
+     watchdog_disable();
+     console_start_sync();
+ 
++    /* Close the DRTM localities before firmware runs again. */
++    slaunch_psp_finalize();
++
+     if ( system_state >= SYS_STATE_smp_boot )
+     {
+         local_irq_enable();
+@@ -603,6 +607,9 @@ void machine_restart(unsigned int delay_millisecs)
+ 
+     mdelay(delay_millisecs);
+ 
++    /* Close the DRTM localities before firmware runs again. */
++    slaunch_psp_finalize();
++
+     if ( tboot_in_measured_env() )
+     {
+         acpi_dmar_reinstate();
+-- 
+2.55.0
+
