@@ -1,0 +1,290 @@
+From 8d8bbdc22d60a409c2e7d2093583c85672a0da28 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Wed, 16 Sep 2026 17:30:23 +0200
+Subject: [PATCH] slaunch: skinit: size the PSP TMR from a memory map the boot
+ path has
+
+grub_skinit_psp_memory_protect() took the EFI memory map from the Linux
+boot params in slparams and walked it to find the address the TMR must
+reach. Only the Linux loaders set that pointer. The chainloaded EFI path
+leaves it NULL for a non-Linux image such as xen.efi, and the Multiboot2
+path never assigns it, so on both the eight EFI fields were read from
+physical 0x1c0 and the walk started at whatever pointer those bytes
+held. On a Gigabyte MZ33-AR1 booting xen.efi that memory is zero, the
+TMR sent to the PSP was zero units, the PSP accepted it, and every
+DRTM_CMD_LAUNCH failed the "SKL within the TMR range" check with
+DRTM_LAUNCH_ERROR.
+
+Take the end address from a map the boot path has. Linux boots keep
+using the boot params. Multiboot2 boots walk the finished MBI, whose
+EFI_MMAP tag is written after ExitBootServices, or the basic memory
+map tag on legacy BIOS. The EFI SKINIT setup records the top of the
+EFI memory map while boot services are still up, and the DL stub falls
+back to that value when no other map is available. Refuse the launch
+instead of sending a TMR when no map was found.
+
+The walk now keeps the highest end address over all descriptors. The
+old loop kept the end of the last descriptor, and the EFI memory map
+is not sorted, so a valid map could also produce a TMR that stopped
+short of the SKL.
+
+The TMR range and the SKL address are printed with debug=slaunch.
+Upstream-Status: Inappropriate [Pending]
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+---
+ grub-core/loader/slaunch/skinit.c        | 132 ++++++++++++++++++++---
+ grub-core/loader/slaunch/x86_efi_linux.c |  40 +++++++
+ include/grub/i386/skinit.h               |   2 +
+ include/grub/slaunch.h                   |   5 +
+ 4 files changed, 167 insertions(+), 12 deletions(-)
+
+diff --git a/grub-core/loader/slaunch/skinit.c b/grub-core/loader/slaunch/skinit.c
+index 1dd6d3177..2463e804d 100644
+--- a/grub-core/loader/slaunch/skinit.c
++++ b/grub-core/loader/slaunch/skinit.c
+@@ -47,6 +47,7 @@
+ #include <grub/i386/linux.h>
+ #include <grub/i386/psp.h>
+ #include <grub/i386/skinit.h>
++#include <grub/multiboot2.h>
+ 
+ grub_err_t
+ grub_skinit_is_supported (void)
+@@ -115,15 +116,97 @@ grub_skinit_prepare_cpu (void)
+   return GRUB_ERR_NONE;
+ }
+ 
+-grub_err_t
+-grub_skinit_psp_memory_protect (struct grub_slaunch_params *slparams)
++/* Highest end address of any descriptor in an EFI memory map. */
++grub_uint64_t
++grub_skinit_efi_mmap_end (grub_addr_t map, grub_size_t map_size, grub_size_t desc_size)
++{
++  grub_efi_memory_descriptor_t *desc = (grub_efi_memory_descriptor_t *) map;
++  grub_addr_t map_end = map + map_size;
++  grub_uint64_t end = 0, desc_end;
++
++  if (map == 0 || desc_size < sizeof (*desc))
++    return 0;
++
++  for (; (grub_addr_t) desc + desc_size <= map_end;
++       desc = (grub_efi_memory_descriptor_t *) ((char *) desc + desc_size))
++    {
++      desc_end = desc->physical_start + (desc->num_pages << 12);
++      if (desc_end > end)
++        end = desc_end;
++    }
++
++  return end;
++}
++
++/*
++ * Highest end address in the memory map tags of a finished Multiboot2
++ * information structure. The EFI memory map tag is written after
++ * ExitBootServices, so it is present on EFI and the basic map on legacy BIOS.
++ */
++static grub_uint64_t
++mb2_mmap_end (grub_uint64_t mbi_base)
++{
++  grub_addr_t mbi = (grub_addr_t) mbi_base;
++  grub_addr_t mbi_end;
++  struct multiboot_tag *tag;
++  grub_uint64_t end = 0, tag_end;
++
++  if (mbi == 0)
++    return 0;
++
++  mbi_end = mbi + *(grub_uint32_t *) mbi;
++
++  for (tag = (struct multiboot_tag *) (mbi + 2 * sizeof (grub_uint32_t));
++       (grub_addr_t) tag + sizeof (*tag) <= mbi_end
++       && tag->type != MULTIBOOT_TAG_TYPE_END;
++       tag = (struct multiboot_tag *) ((grub_addr_t) tag
++                                       + ALIGN_UP (tag->size, MULTIBOOT_TAG_ALIGN)))
++    {
++      tag_end = 0;
++
++      if (tag->type == MULTIBOOT_TAG_TYPE_EFI_MMAP)
++        {
++          struct multiboot_tag_efi_mmap *efi = (struct multiboot_tag_efi_mmap *) tag;
++
++          tag_end = grub_skinit_efi_mmap_end ((grub_addr_t) efi->efi_mmap,
++                                              efi->size - sizeof (*efi),
++                                              efi->descr_size);
++        }
++      else if (tag->type == MULTIBOOT_TAG_TYPE_MMAP)
++        {
++          struct multiboot_tag_mmap *mmap = (struct multiboot_tag_mmap *) tag;
++          grub_addr_t entry = (grub_addr_t) mmap->entries;
++          grub_addr_t entries_end = (grub_addr_t) tag + tag->size;
++
++          if (mmap->entry_size < sizeof (struct multiboot_mmap_entry))
++            continue;
++
++          for (; entry + mmap->entry_size <= entries_end; entry += mmap->entry_size)
++            {
++              struct multiboot_mmap_entry *e = (struct multiboot_mmap_entry *) entry;
++
++              if (e->addr + e->len > tag_end)
++                tag_end = e->addr + e->len;
++            }
++        }
++
++      if (tag_end > end)
++        end = tag_end;
++    }
++
++  return end;
++}
++
++/* Highest end address in the EFI memory map that the Linux boot params point at. */
++static grub_uint64_t
++boot_params_mmap_end (struct grub_slaunch_params *slparams)
+ {
+   struct linux_kernel_params *boot_params = slparams->boot_params;
+-  grub_efi_memory_descriptor_t *memory_map_end;
+-  grub_efi_memory_descriptor_t *desc;
+   struct grub_efi_info *efi_info;
+-  grub_uint64_t efi_memmap, hi_val, tmr_end = 0;
+-  grub_err_t err;
++  grub_uint64_t efi_memmap, hi_val;
++
++  if (boot_params == NULL)
++    return 0;
+ 
+   /* A bit of work to extract the v2.08 EFI info from the linux params */
+   efi_info = (struct grub_efi_info *)((grub_uint8_t *)&(boot_params->v0208)
+@@ -149,12 +232,37 @@ grub_skinit_psp_memory_protect (struct grub_slaunch_params *slparams)
+       efi_memmap = (grub_uint64_t)(grub_addr_t)slparams->efi_memmap_mem;
+     }
+ 
+-  desc = (grub_efi_memory_descriptor_t *)(grub_addr_t) efi_memmap;
+-  memory_map_end = (grub_efi_memory_descriptor_t *)(grub_addr_t) (efi_memmap + efi_info->efi_mmap_size);
+-  for (; desc < memory_map_end; desc = (grub_efi_memory_descriptor_t *) ((char *) desc + efi_info->efi_mem_desc_size))
+-    {
+-      tmr_end = desc->physical_start + (desc->num_pages << 12);
+-    }
++  return grub_skinit_efi_mmap_end ((grub_addr_t) efi_memmap, efi_info->efi_mmap_size,
++                                   efi_info->efi_mem_desc_size);
++}
++
++grub_err_t
++grub_skinit_psp_memory_protect (struct grub_slaunch_params *slparams)
++{
++  grub_uint64_t tmr_end;
++  grub_err_t err;
++
++  /*
++   * The TMR has to cover every address the PSP may be asked about, the SKL
++   * included, so it runs from 0 to the top of the memory map. Which map is
++   * available depends on the boot path: Linux boots carry boot params, a
++   * Multiboot2 boot carries a finished MBI, and a chainloaded EFI image carries
++   * neither, so the top recorded before ExitBootServices is used there.
++   */
++  if (slparams->boot_type == GRUB_SL_BOOT_TYPE_MB2)
++    tmr_end = mb2_mmap_end (slparams->boot_params_base);
++  else
++    tmr_end = boot_params_mmap_end (slparams);
++
++  if (tmr_end == 0)
++    tmr_end = slparams->psp_tmr_end;
++
++  if (tmr_end == 0)
++    return grub_error (GRUB_ERR_BAD_ARGUMENT,
++                       N_("DRTM: no memory map to size the TMR from"));
++
++  grub_dprintf ("slaunch", "DRTM: TMR 0x0-0x%" PRIxGRUB_UINT64_T ", SKL at 0x%"
++                PRIxGRUB_UINT64_T "\n", tmr_end, slparams->dce_base);
+ 
+   grub_drtm_kick_psp ();
+ 
+diff --git a/grub-core/loader/slaunch/x86_efi_linux.c b/grub-core/loader/slaunch/x86_efi_linux.c
+index f1c2c1d3f..691d821e1 100644
+--- a/grub-core/loader/slaunch/x86_efi_linux.c
++++ b/grub-core/loader/slaunch/x86_efi_linux.c
+@@ -375,6 +375,42 @@ fail:
+   return err;
+ }
+ 
++/*
++ * The PSP TMR is sized in the DL stub, after ExitBootServices, where a
++ * chainloaded image has no boot params to take the memory map from. Record
++ * the top of the map while boot services are still available.
++ */
++static grub_err_t
++sl_efi_record_memory_top (struct grub_slaunch_params *slparams)
++{
++  grub_efi_memory_descriptor_t *memory_map;
++  grub_efi_uintn_t memory_map_size, desc_size;
++  int ret;
++
++  memory_map_size = grub_efi_find_mmap_size ();
++
++  memory_map = grub_malloc (memory_map_size);
++  if (memory_map == NULL)
++    return grub_error (GRUB_ERR_OUT_OF_MEMORY, N_("out of memory"));
++
++  ret = grub_efi_get_memory_map (&memory_map_size, memory_map, NULL,
++                                 &desc_size, NULL);
++  if (ret < 1)
++    {
++      grub_free (memory_map);
++      return grub_error (GRUB_ERR_BAD_DEVICE, N_("cannot get EFI memory map"));
++    }
++
++  slparams->psp_tmr_end = grub_skinit_efi_mmap_end ((grub_addr_t) memory_map,
++                                                    memory_map_size, desc_size);
++  grub_free (memory_map);
++
++  grub_dprintf ("slaunch", "top of EFI memory map: 0x%" PRIxGRUB_UINT64_T "\n",
++                slparams->psp_tmr_end);
++
++  return GRUB_ERR_NONE;
++}
++
+ grub_err_t
+ grub_sl_efi_skinit_setup (struct grub_slaunch_params *slparams, void *kernel_addr,
+                           grub_efi_loaded_image_t *loaded_image, bool is_linux)
+@@ -399,6 +435,10 @@ grub_sl_efi_skinit_setup (struct grub_slaunch_params *slparams, void *kernel_add
+       start = (lh->setup_sects + 1) * 512;
+     }
+ 
++  err = sl_efi_record_memory_top (slparams);
++  if (err != GRUB_ERR_NONE)
++    return err;
++
+   /* See comment in TXT setup function grub_sl_efi_txt_setup () */
+   slparams->mle_start = image_base + start;
+   slparams->mle_size = image_size - start;
+diff --git a/include/grub/i386/skinit.h b/include/grub/i386/skinit.h
+index bcad5e902..832482bef 100644
+--- a/include/grub/i386/skinit.h
++++ b/include/grub/i386/skinit.h
+@@ -62,6 +62,8 @@ extern grub_err_t grub_skl_prepare_bootloader_data (struct grub_slaunch_params *
+ extern void grub_skl_link_amd_info (struct grub_slaunch_params *slparams);
+ 
+ extern grub_err_t grub_skinit_is_supported (void);
++extern grub_uint64_t grub_skinit_efi_mmap_end (grub_addr_t map, grub_size_t map_size,
++                                               grub_size_t desc_size);
+ extern grub_err_t grub_skinit_psp_memory_protect (struct grub_slaunch_params *slparams);
+ extern grub_err_t grub_skinit_prepare_cpu (void);
+ extern void grub_skinit_send_init_ipi_shorthand (void);
+diff --git a/include/grub/slaunch.h b/include/grub/slaunch.h
+index e9c295eaa..6d6392fcb 100644
+--- a/include/grub/slaunch.h
++++ b/include/grub/slaunch.h
+@@ -67,6 +67,11 @@ struct grub_slaunch_params
+   struct linux_kernel_params *boot_params;
+   grub_uint64_t boot_params_base;
+   void *efi_memmap_mem;
++  /*
++   * Highest end address in the EFI memory map, recorded before
++   * ExitBootServices. Sizes the PSP TMR on paths without Linux boot params.
++   */
++  grub_uint64_t psp_tmr_end;
+   struct grub_relocator *relocator;
+   grub_uint64_t slr_table_base;
+   grub_uint32_t slr_table_size;
+-- 
+2.55.0
+

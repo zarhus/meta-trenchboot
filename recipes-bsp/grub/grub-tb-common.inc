@@ -10,6 +10,7 @@ SRC_URI = " \
     file://0002-psp.c-Add-get_capability-debug-print.patch \
     file://0003-psp.c-Set-MSI-PRO-B850-and-Turin-CCP-ASP-PSP-version.patch \
     file://0004-slaunch-psp-print-base_addr.patch \
+    file://0005-slaunch-skinit-size-the-PSP-TMR-from-the-boot-path-memory-map.patch \
 "
 
 BRANCH_grub = "tb-dev"
