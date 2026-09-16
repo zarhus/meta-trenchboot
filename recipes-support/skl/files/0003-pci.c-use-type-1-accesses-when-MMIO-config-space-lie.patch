@@ -26,6 +26,7 @@ the 64-bit build identity-maps the first 4 GiB. Otherwise use type 1
 accesses, and print a note so the chosen path shows up in the log.
 
 Fixes: https://github.com/TrenchBoot/trenchboot-issues/issues/81
+Upstream-Status: Pending
 Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
 ---
  pci.c | 32 +++++++++++++++++++++++++++-----

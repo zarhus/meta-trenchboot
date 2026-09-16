@@ -38,6 +38,7 @@ testPublicKey.bin, and the signature over length + 0x100 bytes
 verifies with a digest-length PSS salt, which is what the tool uses.
 
 Related: https://github.com/TrenchBoot/trenchboot-issues/issues/79
+Upstream-Status: Pending
 Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
 ---
  link.lds | 23 +++++++++++++++++------

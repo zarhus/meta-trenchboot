@@ -18,6 +18,7 @@ such a host carries a signature the PSP will not accept.
 Pass rsa_pss_saltlen:digest so the signature matches the PSP on every
 OpenSSL version.
 
+Upstream-Status: Pending
 Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
 ---
  Makefile | 4 ++--

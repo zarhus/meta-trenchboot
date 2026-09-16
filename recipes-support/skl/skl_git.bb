@@ -11,6 +11,9 @@ SRC_URI = " \
     git://github.com/TrenchBoot/secure-kernel-loader.git;protocol=https;branch=${BRANCH};name=skl \
     file://0001-head.S-move-skl_info-and-bootloader_data-fields-back.patch \
     file://0002-psp.c-Set-MSI-PRO-B850-and-MZ33-AR1-PSP-version.patch \
+    file://0003-pci.c-use-type-1-accesses-when-MMIO-config-space-lie.patch \
+    file://0004-link.lds-align-the-measured-length-to-16-bytes.patch \
+    file://0005-Makefile-sign-with-a-PSS-salt-of-the-digest-length.patch \
 "
 
 BRANCH = "skl-loader-amdsl-noblob"
