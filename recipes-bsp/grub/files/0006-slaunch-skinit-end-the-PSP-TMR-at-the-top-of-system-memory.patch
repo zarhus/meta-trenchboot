@@ -12,6 +12,8 @@ The TMR protects the system memory the SKL and the DLME live in, so
 skip MMIO, MMIO port space and PAL code descriptors in the EFI walk,
 and count only available, ACPI reclaimable and NVS entries in the
 Multiboot2 basic map, where MMIO appears as reserved.
+Upstream-Status: Pending
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
 ---
  grub-core/loader/slaunch/skinit.c | 17 ++++++++++++++++-
  1 file changed, 16 insertions(+), 1 deletion(-)

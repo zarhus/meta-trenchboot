@@ -29,7 +29,7 @@ is not sorted, so a valid map could also produce a TMR that stopped
 short of the SKL.
 
 The TMR range and the SKL address are printed with debug=slaunch.
-Upstream-Status: Inappropriate [Pending]
+Upstream-Status: Pending
 Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
 ---
  grub-core/loader/slaunch/skinit.c        | 132 ++++++++++++++++++++---
