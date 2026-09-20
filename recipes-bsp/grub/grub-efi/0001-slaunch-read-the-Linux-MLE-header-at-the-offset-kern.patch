@@ -1,0 +1,52 @@
+From d21fd152031766f4e7c39feeacb7af7289863fad Mon Sep 17 00:00:00 2001
+From: iwanicki92 <iwanicki92@gmail.com>
+Date: Sun, 20 Sep 2026 18:46:26 +0200
+Subject: [PATCH] slaunch: read the Linux MLE header at the offset kernel_info
+ gives
+
+sl_efi_load_mle_data() reads mle_header_offset from kernel_info into a
+local, then dereferences slparams->mle_header_offset instead, which is
+still zero on the EFI path. The "header" it finds is the bzImage's MZ
+stub, whose bytes at the entry_point offset are zero, and the UUID check
+is inverted so the mismatch passes. slparams->mle_entry ends up 0.
+
+TXT never reads mle_entry, the ACM takes the entry from the MLE header
+itself, so Intel EFI boots hid this. On AMD the SLRT's dlme_entry is
+mle_entry, so SKL jumps to startup_32 rather than sl_stub_entry. The
+kernel then boots without SLAUNCH_FLAG, never runs
+slaunch_cpu_setup_skinit() and its STGI, and with GIF still clear from
+SKINIT no interrupt is ever delivered: check_timer() panics with "timer
+doesn't work through Interrupt-remapped IO-APIC". The legacy path sets
+mle_entry from the header it seeks to in the file and boots.
+
+Point at the header the offset names, relative to the protected-mode
+kernel like kernel_info_offset is, and fail when the UUID does not match.
+
+Signed-off-by: iwanicki92 <iwanicki92@gmail.com>
+Upstream-Status: Pending
+---
+ grub-core/loader/slaunch/x86_efi_linux.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/grub-core/loader/slaunch/x86_efi_linux.c b/grub-core/loader/slaunch/x86_efi_linux.c
+index f1c2c1d..2a457ae 100644
+--- a/grub-core/loader/slaunch/x86_efi_linux.c
++++ b/grub-core/loader/slaunch/x86_efi_linux.c
+@@ -120,12 +120,12 @@ sl_efi_load_mle_data (struct grub_slaunch_params *slparams,
+         }
+ 
+       mle_hdr_offset = grub_le_to_cpu32 (kernel_info.mle_header_offset);
+-      mle_hdr = (struct grub_txt_mle_header *)((grub_addr_t)kernel_addr + slparams->mle_header_offset);
++      mle_hdr = (struct grub_txt_mle_header *)((grub_addr_t)kernel_addr + kernel_start + mle_hdr_offset);
+ 
+-      if (!grub_memcmp (mle_hdr->uuid, GRUB_TXT_MLE_UUID, 16))
++      if (grub_memcmp (mle_hdr->uuid, GRUB_TXT_MLE_UUID, 16) != 0)
+         {
+           grub_dprintf ("slaunch", "Not an MLE header at %llu\n",
+-                        (unsigned long long)((grub_addr_t)kernel_addr + mle_hdr_offset));
++                        (unsigned long long)(grub_addr_t)mle_hdr);
+           return GRUB_ERR_BAD_OS;
+         }
+     }
+-- 
+2.43.0
