@@ -19,7 +19,7 @@
 # License along with this script; if not, see <https://www.gnu.org/licenses/>.
 
 set -uo pipefail
-VERSION=0.1
+VERSION=0.2
 
 echo -e "trenchboot-hcl-report v$VERSION"
 echo ""
@@ -68,19 +68,35 @@ check_drtm_event() {
 
   # Check if PCR values are all zeros or all FF
   if [[ "$PCR_17" =~ ^(0{40,}|f{40,})$ ]]; then
-    VALID=false
-  fi
-  if [[ "$PCR_18" =~ ^(0{40,}|f{40,})$ ]]; then
-    VALID=false
-  fi
-
-  if [ "$VALID" = true ]; then
-    # DRTM event likely present
-    return 0
-  else
-    # DRTM event not detected
     return 1
   fi
+  if [[ "$PCR_18" =~ ^(0{40,}|f{40,})$ ]]; then
+    return 1
+  fi
+
+  # On AMD the launch can fail after SKINIT with the DLME still booting.
+  # The PSP then caps PCR 18 to 20 with one all-ones extend, so PCR 18
+  # holds SHA-256(32 zero bytes || 32 0xff bytes) and PCR 19 is not zero.
+  # A successful launch leaves PCR 19 at zero, nothing extends it. The PSP
+  # path needs a TPM 2.0, so the SHA-1 bank is not checked.
+  if [[ "$AMD" == "true" && "$TPM_S" == "2.0" ]]; then
+    local PCR_19
+    local CAPPED
+    PCR_19=$(cat "$PCR_PATH/19" 2>/dev/null | tr '[:upper:]' '[:lower:]')
+    # printf only: the image's BusyBox head has no -c.
+    CAPPED=$({ printf '\000%.0s' $(seq 32); printf '\377%.0s' $(seq 32); } | sha256sum | cut -d ' ' -f1)
+    if [[ "$PCR_18" == "$CAPPED" ]]; then
+      DRTM_ERROR="PCR 18 holds the PSP cap value, the launch failed after SKINIT"
+      return 4
+    fi
+    if [[ -n "$PCR_19" && ! "$PCR_19" =~ ^0+$ ]]; then
+      DRTM_ERROR="PCR 19 is not zero after the launch, the launch likely failed after SKINIT"
+      return 4
+    fi
+  fi
+
+  # DRTM event likely present
+  return 0
 }
 
 # Function to check txt-parse_err and handle errors
@@ -212,6 +228,14 @@ else
   INTEL="false"
 fi
 
+# AMD-only
+if grep -q "^vendor_id.*AuthenticAMD" "$TEMP_DIR/cpuinfo.log"; then
+  AMD="true"
+else
+  AMD="false"
+fi
+DRTM_ERROR=""
+
 # Initialize TXT error variables
 TXT_ERROR_CODE="unknown"
 TXT_ERROR_REPORT="no"
@@ -256,6 +280,10 @@ case $DRTM_TEST_RESULT in
   1)
     TB_SUCCESS="failure"
     ;;
+  # launched, then failed: DRTM_ERROR says how
+  4)
+    TB_SUCCESS="failure"
+    ;;
   # failed to get PCR data from TPM
   *)
     TB_SUCCESS="unknown"
@@ -281,6 +309,12 @@ $CHIPSET
 
 TPM:\t\t$TPM
 "
+
+# Add DRTM PCR error information if applicable
+if [[ -n "$DRTM_ERROR" ]]; then
+    READABLE_OUTPUT+="
+DRTM Error:\t$DRTM_ERROR"
+fi
 
 # Add TXT error information if applicable
 if [[ "$INTEL" == "true" && "$TXT_ERROR_CODE" != "unknown" && "$TXT_ERROR_CODE" != "0x00000000" ]]; then
@@ -336,6 +370,13 @@ if [ "$XEN" = true ]; then
   YAML_OUTPUT+="
     xen: |
       $XEN_MAJOR.$XEN_MINOR$XEN_EXTRA"
+fi
+
+# Add DRTM PCR error information to YAML if applicable
+if [[ -n "$DRTM_ERROR" ]]; then
+    YAML_OUTPUT+="
+    drtm-error: |
+      $DRTM_ERROR"
 fi
 
 # Add TXT error information to YAML if applicable
