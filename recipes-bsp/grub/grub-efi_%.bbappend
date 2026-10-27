@@ -2,7 +2,10 @@ require grub-tb-common.inc
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
-SRC_URI += "file://cfg"
+SRC_URI += " \
+    file://cfg \
+    file://0001-slaunch-keep-the-kernel-s-decompression-area-free-on.patch \
+"
 
 GRUB_BUILDIN = " \
                 boot linux ext2 fat serial part_msdos part_gpt normal \
