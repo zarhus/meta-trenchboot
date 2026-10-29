@@ -4,7 +4,7 @@ PV = "${XEN_REL}+tb"
 
 SRC_URI = "git://github.com/TrenchBoot/xen.git;branch=${XEN_BRANCH};protocol=https"
 
-SRCREV = "8bea73c4615ba46de97e1b7d46a4f5e0a137f29d"
+SRCREV = "e843e9bd82b8199651924e587915e9290e43ebc8"
 
 S = "${WORKDIR}/git"
 

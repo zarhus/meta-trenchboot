@@ -7,9 +7,9 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=4641e94ec96f98fabc56ff9cc48be14b"
 
 DEPENDS = "util-linux-native"
 
-SRC_URI = "git://github.com/TrenchBoot/secure-kernel-loader.git;protocol=https;branch=${BRANCH};name=skl"
-BRANCH = "skl-loader-amdsl-v11"
-SRCREV = "de1899007d038eeacf5edb8e63c0f0a4b3e265c4"
+SRC_URI = "git://github.com/iwanicki92/secure-kernel-loader.git;protocol=https;branch=${BRANCH};name=skl"
+BRANCH = "up/tpm-banks"
+SRCREV = "9b4018b3415da36dddbc5ac40033040ac5e56da3"
 
 TUNE_CCARGS:remove = "-msse3 -mfpmath=sse"
 
