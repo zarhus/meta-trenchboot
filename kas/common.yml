@@ -1,15 +1,15 @@
 ---
 header:
-  version: 8
+  version: 14
   includes:
-    - cache.yml
+    - kas/cache.yml
 
 repos:
   meta-trenchboot:
 
   poky:
     url: https://github.com/zarhus/poky.git
-    refspec: 0bb7dda99977a3366a0e2f55473dd516eec57346
+    commit: 0bb7dda99977a3366a0e2f55473dd516eec57346
     layers:
       meta:
       meta-poky:
@@ -17,7 +17,7 @@ repos:
 
   meta-openembedded:
     url: https://git.openembedded.org/meta-openembedded
-    refspec: a72010b414ee3d73888ac9cb4e310e8f05e13aea
+    commit: a72010b414ee3d73888ac9cb4e310e8f05e13aea
     layers:
       meta-oe:
       meta-networking:
@@ -27,13 +27,13 @@ repos:
 
   meta-security:
     url: https://git.yoctoproject.org/meta-security
-    refspec: 11ea91192d43d7c2b0b95a93aa63ca7e73e38034
+    commit: 11ea91192d43d7c2b0b95a93aa63ca7e73e38034
     layers:
       meta-tpm:
 
   meta-dasharo:
     url: https://github.com/Dasharo/meta-dasharo
-    refspec: eccba1ec830aded5d2d9a85e9ceeae596196a4c2
+    commit: eccba1ec830aded5d2d9a85e9ceeae596196a4c2
 
 bblayers_conf_header:
   standard: |

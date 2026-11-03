@@ -11,11 +11,11 @@ Meta layer used for testing and demonstration of the
 
 * [docker](https://docs.docker.com/engine/install/fedora/) installed
 
-* [kas-container 3.0.2](https://raw.githubusercontent.com/siemens/kas/3.0.2/kas-container)
+* [kas-container 4.2](https://raw.githubusercontent.com/siemens/kas/4.2/kas-container)
   script downloaded and available in [PATH](https://en.wikipedia.org/wiki/PATH_(variable))
 
     ```bash
-    wget -O ~/bin/kas-container https://raw.githubusercontent.com/siemens/kas/3.0.2/kas-container
+    wget -O ~/bin/kas-container https://raw.githubusercontent.com/siemens/kas/4.2/kas-container
     chmod +x ~/bin/kas-container
     ```
 
@@ -72,7 +72,7 @@ reference to this file in `kas/common.yml`:
 
 ```yaml
 includes:
-    - cache.yml
+    - kas/cache.yml
 ```
 
 This cache can decrease time needed to build image from scratch from hours to
