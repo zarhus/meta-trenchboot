@@ -1,7 +1,10 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 SRC_URI:remove = "file://0001-python-pygrub-pass-DISTUTILS-xen-4.18.patch"
-SRC_URI:append = " file://0001-python-pygrub-pass-DISTUTILS-xen-4.20.patch"
+SRC_URI:append = " \
+    file://0001-python-pygrub-pass-DISTUTILS-xen-4.20.patch \
+    file://0001-tools-tests-x86_emulator-quote-HOSTCC-passed-to-the-.patch \
+"
 
 XEN_REL = "4.23"
 XEN_BRANCH = "staging"
@@ -40,3 +43,13 @@ FILES:${PN}-libxenmanage-dev += " \
 "
 
 RDEPENDS:${PN} += "${PN}-libxenmanage"
+
+# test_x86_emulator is compiled with HOSTCC, which xen.inc sets to BUILD_CC
+# without the prefix maps it gives the target compiler. Add the same maps so
+# the binary carries no build paths. The
+# 0001-tools-tests-x86_emulator-quote-HOSTCC patch lets
+# tools/tests/x86_emulator/Makefile pass this HOSTCC to its 32-bit sub-make.
+HOSTCC:append = " \
+    -ffile-prefix-map=${S}=${PN}-source \
+    -fdebug-prefix-map=${WORKDIR}=${PN} \
+"

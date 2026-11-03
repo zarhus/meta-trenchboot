@@ -12,6 +12,7 @@
   "variables": {
     "known": [
       "lcl_maybe_fortify",
+      "HOSTCC",
       "XEN_BRANCH",
       "XEN_REL"
     ],

@@ -1,0 +1,39 @@
+From 101fba80b3b62bbe4a6ef61b3a7e1788a32d9dc4 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Tue, 3 Nov 2026 10:35:49 +0100
+Subject: [PATCH] tools/tests/x86_emulator: quote HOSTCC passed to the 32-bit
+ sub-make
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The clean32 and run32 rules pass HOSTCC to the sub-make unquoted. When
+HOSTCC carries options, such as the prefix maps a Yocto build adds for
+reproducibility, the shell splits the value and the sub-make reads the
+options as its own:
+
+  make -C 32 HOSTCC=gcc -ffile-prefix-map=<dir>=<new> clean
+  make: *** No rule to make target 'file-prefix-map=<dir>=<new>'.  Stop.
+
+Quote the value so the sub-make receives HOSTCC as one word.
+
+Upstream-Status: Pending
+
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+---
+ tools/tests/x86_emulator/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/tests/x86_emulator/Makefile b/tools/tests/x86_emulator/Makefile
+index 8210e83345..fe284d7f83 100644
+--- a/tools/tests/x86_emulator/Makefile
++++ b/tools/tests/x86_emulator/Makefile
+@@ -286,7 +286,7 @@ uninstall:
+ ifeq ($(XEN_COMPILE_ARCH),x86_64)
+ run32: $(addsuffix .h,$(TESTCASES)) $(addsuffix -opmask.h,$(OPMASK))
+ run32 clean32: %32:
+-	$(MAKE) -C 32 HOSTCC=$(HOSTCC) $*
++	$(MAKE) -C 32 HOSTCC="$(HOSTCC)" $*
+ clean: clean32
+ else
+ run32 clean32: %32: %
