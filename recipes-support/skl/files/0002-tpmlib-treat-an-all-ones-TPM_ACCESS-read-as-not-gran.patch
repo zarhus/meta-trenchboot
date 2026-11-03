@@ -1,0 +1,58 @@
+From c702d536818c28861d6dee2be8a9ee85b2403c8e Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
+Date: Wed, 16 Sep 2026 20:29:18 +0200
+Subject: [PATCH] tpmlib: treat an all-ones TPM_ACCESS read as not granted
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+tis_request_locality() takes a locality as granted when activeLocality
+is set in its TPM_ACCESS register. A locality the chipset does not
+decode for the host reads as all ones, which sets that bit too, so the
+SKL could believe it held a locality it cannot use.
+
+Reserved bit 6 is set in that value, so treat an all-ones read as not
+granted.
+
+This is the tis.c part of "amdsl: hold no TPM locality during
+DRTM_CMD_LAUNCH", which applies on every launch path, not only the
+AMDSL build.
+
+Upstream-Status: Pending
+Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
+Signed-off-by: Michał Kopeć <michal.kopec@3mdeb.com>
+---
+ tpmlib/tis.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/tpmlib/tis.c b/tpmlib/tis.c
+index 4547735..63ca86c 100644
+--- a/tpmlib/tis.c
++++ b/tpmlib/tis.c
+@@ -58,6 +58,8 @@ void tis_relinquish_locality(void)
+ 
+ u8 tis_request_locality(u8 l)
+ {
++	u8 access;
++
+ 	if (l > TPM_MAX_LOCALITY)
+ 		return TPM_NO_LOCALITY;
+ 
+@@ -68,8 +70,12 @@ u8 tis_request_locality(u8 l)
+ 
+ 	tpm_write8(ACCESS_REQUEST_USE, ACCESS(l));
+ 
+-	/* wait for locality to be granted */
+-	if (tpm_read8(ACCESS(l)) & ACCESS_ACTIVE_LOCALITY)
++	/*
++	 * A locality the chipset does not decode for the host reads as all
++	 * ones, which has the reserved bit 6 set. Treat that as not granted.
++	 */
++	access = tpm_read8(ACCESS(l));
++	if (access != 0xff && (access & ACCESS_ACTIVE_LOCALITY))
+ 		locality = l;
+ 
+ 	return locality;
+-- 
+2.55.0
+

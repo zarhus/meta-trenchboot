@@ -7,7 +7,11 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=4641e94ec96f98fabc56ff9cc48be14b"
 
 DEPENDS = "util-linux-native"
 
-SRC_URI = "git://github.com/iwanicki92/secure-kernel-loader.git;protocol=https;branch=${BRANCH};name=skl"
+SRC_URI = " \
+    git://github.com/iwanicki92/secure-kernel-loader.git;protocol=https;branch=${BRANCH};name=skl \
+    file://0001-pci.c-use-type-1-accesses-when-MMIO-config-space-lie.patch \
+    file://0002-tpmlib-treat-an-all-ones-TPM_ACCESS-read-as-not-gran.patch \
+"
 BRANCH = "up/tpm-banks"
 SRCREV = "9b4018b3415da36dddbc5ac40033040ac5e56da3"
 
