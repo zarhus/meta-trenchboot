@@ -11,7 +11,7 @@ DEPENDS += "util-linux-native coreutils-native openssl-native xxd-native"
 
 SRC_URI = "git://github.com/TrenchBoot/secure-kernel-loader.git;protocol=https;branch=${BRANCH};name=skl"
 BRANCH = "skl-loader-amdsl-noblob-sl_header-fix"
-SRCREV = "5a72c835be8b91c1b225809388b1c2c4777ad289"
+SRCREV = "65fbb8708528ec58948cc6282de0e07e5160f8fb"
 
 TUNE_CCARGS:remove = "-msse3 -mfpmath=sse"
 
