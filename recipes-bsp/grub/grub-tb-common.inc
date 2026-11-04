@@ -6,7 +6,7 @@ SRC_URI = " \
           "
 
 BRANCH_grub = "tb-dev"
-SRCREV_grub = "b5517787efc2359908c268e7bad5eb0bd1043525"
+SRCREV_grub = "7abf7b642e23be2da24bbbf3dc92d70493bedb4b"
 
 # We add gnulib to SRC_URI to avoid downloading it during the do_configure().
 # The bootstrap script seems to be smart enough to skip fetching repo again
