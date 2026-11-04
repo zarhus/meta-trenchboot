@@ -1,0 +1,118 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: iwanicki92 <iwanicki92@gmail.com>
+Date: Mon, 28 Sep 2026 20:14:44 +0200
+Subject: [PATCH 8/8] amdsl: check PCR 17 after SKINIT instead of guessing
+ GRUB's TMR
+
+The TMR print read GRUB's memory map fields from physical 0x1c0, which
+GRUB stopped using when it began sizing the TMR itself. The SKL is never
+told the TMR, so the print showed interrupt vectors and a TMR end of 0.
+
+In its place the SKL compares PCR 17 with the value SKINIT should have
+left. All ones is the value from TPM startup and means SKINIT's
+measurement did not reach the TPM, a likely reason for DRTM_CMD_LAUNCH
+to refuse.
+
+Upstream-Status: Inappropriate [debug]
+Signed-off-by: iwanicki92 <iwanicki92@gmail.com>
+---
+ main.c | 67 ++++++++++++++++++----------------------------------------
+ 1 file changed, 20 insertions(+), 47 deletions(-)
+
+diff --git a/main.c b/main.c
+index 26c8aad..3bfc2fe 100644
+--- a/main.c
++++ b/main.c
+@@ -385,60 +385,33 @@ static void print_image_hash(void)
+ }
+ 
+ /*
+- * GRUB derives the TMR end from the EFI memory map fields of the Linux boot
+- * params. On an EFI Xen boot the boot params pointer is NULL, so the fields
+- * are read from physical 0x1c0 to 0x1df. Dump them and redo GRUB's walk, which
+- * takes the end of the last descriptor, so the TMR the PSP was given is known.
++ * SKINIT resets PCR 17 to 22 to zero at locality 4 and extends PCR 17 with the
++ * SKL. All ones is the value from TPM startup, so SKINIT did not reach the TPM.
+  */
+-static void print_grub_tmr_inputs(void)
++static void print_pcr17_check(struct tpm *tpm, const u8 *expected)
+ {
+-    u32 efi_info_addr = 0x1c0;
+-    const u32 *efi_info;
+-    u32 desc_size, mmap_size;
+-    u64 mmap, tmr_end = 0;
+-    const u8 *desc, *end;
+-
+-    /* Keep the compiler from treating the fixed address as a null object. */
+-    asm volatile ("" : "+r" (efi_info_addr));
+-    efi_info = (const u32 *)efi_info_addr;
+-    desc_size = efi_info[2];
+-    mmap_size = efi_info[5];
+-    mmap = efi_info[4] | ((u64)efi_info[7] << 32);
+-
+-    print("AMDSL: GRUB efi_info at 0x1c0: ");
+-    print_bytes((const u8 *)efi_info, 0x20);
+-    print("\n");
+-    print("AMDSL: GRUB efi_mmap = ");
+-    print_u64(mmap);
+-    print(", size = ");
+-    print_u64(mmap_size);
+-    print(", desc size = ");
+-    print_u64(desc_size);
+-    print("\n");
++    u8 digest[SHA256_DIGEST_SIZE];
++    u16 size = sizeof(digest);
++    unsigned i, same = 0, ones = 0;
+ 
+-    if ( mmap == 0 || mmap_size == 0 )
+-        tmr_end = 0;
+-    else if ( mmap + mmap_size > 0x100000000ULL || mmap_size > 0x10000
+-              || desc_size < 40 || desc_size > 0x100 )
++    print("AMDSL: PCR17 after SKINIT ");
++    if ( tpm_pcr_read(tpm, 17, TPM_ALG_SHA256, digest, &size) != 0
++         || size != sizeof(digest) )
+     {
+-        print("AMDSL: GRUB memory map pointer not walkable from SKL\n");
++        print("could not be read\n");
+         return;
+     }
+-    else
++    for ( i = 0; i < size; i++ )
+     {
+-        desc = (const u8 *)(u32)mmap;
+-        end = desc + mmap_size;
+-        for ( ; desc < end; desc += desc_size )
+-            tmr_end = *(const u64 *)(desc + 8) + (*(const u64 *)(desc + 24) << 12);
++        same += digest[i] == expected[i];
++        ones += digest[i] == 0xff;
+     }
+-
+-    print("AMDSL: GRUB tmr_end = ");
+-    print_u64(tmr_end);
+-    print(", TMR units of 64 KiB = ");
+-    print_u64((tmr_end + 0xffff) >> 16);
+-    print(", SKL end = ");
+-    print_u64(_u(_start) + 0x10000);
+-    print("\n");
++    if ( same == size )
++        print("matches the SKL\n");
++    else if ( ones == size )
++        print("holds the startup value, SKINIT did not extend it\n");
++    else
++        print("differs from the SKL\n");
+ }
+ 
+ /*
+@@ -475,11 +448,11 @@ static void print_launch_inputs(struct tpm *tpm)
+     print("\n");
+ 
+     print_image_hash();
+-    print_grub_tmr_inputs();
+ 
+     print("AMDSL: PCRs before DRTM launch\n");
+     print_pcrs_at(tpm, 2);
+     print_pcrs_at(tpm, 0);
++    print_pcr17_check(tpm, hash);
+ }
+ #else
+ static inline void print_launch_inputs(struct tpm *tpm) { }

@@ -15,6 +15,7 @@ SRC_URI += " \
     file://0005-amdsl-read-PCR-17-to-20-after-DRTM_CMD_EXTEND_OSSL_D.patch \
     file://0006-amdsl-dump-the-TIS-state-and-retry-locality-2-before.patch \
     file://0007-amdsl-print-the-SHA-256-of-the-DLME-range-before-the.patch \
+    file://0008-amdsl-check-PCR-17-after-SKINIT-instead-of-guessing-.patch \
 "
 
 EXTRA_OEMAKE += "AMDSL=y"
