@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
 Date: Wed, 16 Sep 2026 18:48:39 +0200
-Subject: [PATCH 5/7] amdsl: read PCR 17 to 20 after
+Subject: [PATCH 5/8] amdsl: read PCR 17 to 20 after
  DRTM_CMD_EXTEND_OSSL_DIGEST
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -18,10 +18,10 @@ Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
  1 file changed, 6 insertions(+)
 
 diff --git a/main.c b/main.c
-index 0a81398..dd72ff1 100644
+index 6cdeedf..4d265cf 100644
 --- a/main.c
 +++ b/main.c
-@@ -291,6 +291,8 @@ static void print_pcrs(struct tpm *tpm)
+@@ -292,6 +292,8 @@ static void print_pcrs(struct tpm *tpm)
      print_pcr(tpm, 17, TPM_ALG_SHA256, "  PCR17 sha256 = ");
      print_pcr(tpm, 17, TPM_ALG_SHA1,   "  PCR17 sha1   = ");
      print_pcr(tpm, 18, TPM_ALG_SHA256, "  PCR18 sha256 = ");
@@ -30,7 +30,7 @@ index 0a81398..dd72ff1 100644
  }
  
  /*
-@@ -531,6 +533,10 @@ static asm_return_t amdsl_launch()
+@@ -536,6 +538,10 @@ static asm_return_t amdsl_launch()
          print("DRTM: skl_linux: failed to extend OSSL digest\n");
      }
  
@@ -38,6 +38,6 @@ index 0a81398..dd72ff1 100644
 +    print("AMDSL: PCRs after DRTM_CMD_EXTEND_OSSL_DIGEST\n");
 +    print_pcrs_at(tpm, 2);
 +
-     ret.dlme_entry = _p(dl_info->dlme_base + dl_info->dlme_entry);
-     ret.dlme_arg = _p(amd_info->boot_params_base);
- 
+     /*
+      * The PSP's extends of PCR 17 and 18, at the launch and just now, are
+      * in a log of its own. Append its records to ours, so the log the

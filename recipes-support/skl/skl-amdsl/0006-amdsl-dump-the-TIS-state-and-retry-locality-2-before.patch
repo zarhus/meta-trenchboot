@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
 Date: Wed, 16 Sep 2026 19:25:52 +0200
-Subject: [PATCH 6/7] amdsl: dump the TIS state and retry locality 2 before the
+Subject: [PATCH 6/8] amdsl: dump the TIS state and retry locality 2 before the
  post-extend PCR read
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -17,12 +17,12 @@ Upstream-Status: Inappropriate [debug]
 Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
 ---
  include/psp.h |  2 ++
- main.c        | 14 +++++++++++++-
+ main.c        | 15 ++++++++++++++-
  psp.c         |  2 +-
- 3 files changed, 16 insertions(+), 2 deletions(-)
+ 3 files changed, 17 insertions(+), 2 deletions(-)
 
 diff --git a/include/psp.h b/include/psp.h
-index f6d2b6d..8eacd88 100644
+index 8ce6e83..fbb7604 100644
 --- a/include/psp.h
 +++ b/include/psp.h
 @@ -89,6 +89,8 @@ bool drtm_extend_ossl_digest(u64 addr, u64 size);
@@ -33,12 +33,12 @@ index f6d2b6d..8eacd88 100644
 +
  bool drtm_get_cap(void);
  
- #endif /* AMDSL */
+ bool drtm_get_tcg_logs(u64 *addr, u64 *size);
 diff --git a/main.c b/main.c
-index dd72ff1..a8de72d 100644
+index 4d265cf..a657152 100644
 --- a/main.c
 +++ b/main.c
-@@ -533,9 +533,21 @@ static asm_return_t amdsl_launch()
+@@ -538,9 +538,22 @@ static asm_return_t amdsl_launch()
          print("DRTM: skl_linux: failed to extend OSSL digest\n");
      }
  
@@ -57,12 +57,13 @@ index dd72ff1..a8de72d 100644
      print("AMDSL: PCRs after DRTM_CMD_EXTEND_OSSL_DIGEST\n");
      print_pcrs_at(tpm, 2);
 +    print_pcrs_at(tpm, 0);
++
 +    tpm_request_locality(tpm, 2);
  
-     ret.dlme_entry = _p(dl_info->dlme_base + dl_info->dlme_entry);
-     ret.dlme_arg = _p(amd_info->boot_params_base);
+     /*
+      * The PSP's extends of PCR 17 and 18, at the launch and just now, are
 diff --git a/psp.c b/psp.c
-index 618de1d..3cf0562 100644
+index 60cf80d..63b9419 100644
 --- a/psp.c
 +++ b/psp.c
 @@ -79,7 +79,7 @@ const struct pci_psp_device psp_devs_list[] = {

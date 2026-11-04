@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
 Date: Wed, 16 Sep 2026 17:13:09 +0200
-Subject: [PATCH 4/7] amdsl: print the whole-image hash and the TMR inputs GRUB
+Subject: [PATCH 4/8] amdsl: print the whole-image hash and the TMR inputs GRUB
  used
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -31,10 +31,10 @@ Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
  1 file changed, 86 insertions(+), 1 deletion(-)
 
 diff --git a/main.c b/main.c
-index 2178bf3..0a81398 100644
+index bcbd896..6cdeedf 100644
 --- a/main.c
 +++ b/main.c
-@@ -333,6 +333,87 @@ static void print_pcrs_at(struct tpm *tpm, u8 l)
+@@ -334,6 +334,87 @@ static void print_pcrs_at(struct tpm *tpm, u8 l)
      print_pcrs(tpm);
  }
  
@@ -122,7 +122,7 @@ index 2178bf3..0a81398 100644
  /*
   * What the PSP compares during DRTM_CMD_LAUNCH: its own SHA-256 of the SKL
   * header and code against PCR 17, which SKINIT extended with the same range.
-@@ -366,6 +447,9 @@ static void print_launch_inputs(struct tpm *tpm)
+@@ -367,6 +448,9 @@ static void print_launch_inputs(struct tpm *tpm)
      print_bytes(hash, sizeof(hash));
      print("\n");
  
@@ -132,7 +132,7 @@ index 2178bf3..0a81398 100644
      print("AMDSL: PCRs before DRTM launch\n");
      print_pcrs_at(tpm, 2);
      print_pcrs_at(tpm, 0);
-@@ -385,8 +469,9 @@ static asm_return_t amdsl_launch()
+@@ -387,8 +471,9 @@ static asm_return_t amdsl_launch()
  
      print("Enter amdsl_launch()\n");
  
@@ -142,4 +142,4 @@ index 2178bf3..0a81398 100644
 +    print_tpm_access("after TIS init");
      tpm_request_locality(tpm, 2);
      print_tpm_access("after requesting locality 2");
-     event_log_init(tpm);
+ 

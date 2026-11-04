@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
 Date: Wed, 16 Sep 2026 20:29:37 +0200
-Subject: [PATCH 3/7] amdsl: dump TPM_ACCESS and read the PCRs at two
+Subject: [PATCH 3/8] amdsl: dump TPM_ACCESS and read the PCRs at two
  localities
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -20,7 +20,7 @@ Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
  1 file changed, 53 insertions(+), 5 deletions(-)
 
 diff --git a/main.c b/main.c
-index 9c02cd8..2178bf3 100644
+index 04f8575..bcbd896 100644
 --- a/main.c
 +++ b/main.c
 @@ -23,6 +23,7 @@
@@ -31,7 +31,7 @@ index 9c02cd8..2178bf3 100644
  #include <sha1sum.h>
  #include <sha256.h>
  #include <event_log.h>
-@@ -292,6 +293,46 @@ static void print_pcrs(struct tpm *tpm)
+@@ -293,6 +294,46 @@ static void print_pcrs(struct tpm *tpm)
      print_pcr(tpm, 18, TPM_ALG_SHA256, "  PCR18 sha256 = ");
  }
  
@@ -78,7 +78,7 @@ index 9c02cd8..2178bf3 100644
  /*
   * What the PSP compares during DRTM_CMD_LAUNCH: its own SHA-256 of the SKL
   * header and code against PCR 17, which SKINIT extended with the same range.
-@@ -325,12 +366,14 @@ static void print_launch_inputs(struct tpm *tpm)
+@@ -326,12 +367,14 @@ static void print_launch_inputs(struct tpm *tpm)
      print_bytes(hash, sizeof(hash));
      print("\n");
  
@@ -96,17 +96,17 @@ index 9c02cd8..2178bf3 100644
  #endif
  
  static asm_return_t amdsl_launch()
-@@ -343,7 +386,9 @@ static asm_return_t amdsl_launch()
+@@ -345,7 +388,9 @@ static asm_return_t amdsl_launch()
      print("Enter amdsl_launch()\n");
  
      tpm = enable_tpm();
 +    print_tpm_access("at entry");
      tpm_request_locality(tpm, 2);
 +    print_tpm_access("after requesting locality 2");
-     event_log_init(tpm);
  
-     print("TPM enabled and logging initialized\n");
-@@ -383,16 +428,19 @@ static asm_return_t amdsl_launch()
+     dl_info = next_entry_with_tag(NULL, SLR_ENTRY_DL_INFO);
+     amd_info = next_entry_with_tag(NULL, SLR_ENTRY_AMD_INFO);
+@@ -382,16 +427,19 @@ static asm_return_t amdsl_launch()
       * service until the launch succeeds, so it is requested afterwards.
       */
      tpm_relinquish_locality(tpm);
@@ -126,5 +126,5 @@ index 9c02cd8..2178bf3 100644
      tpm_request_locality(tpm, 2);
 +    print_tpm_access("after re-requesting locality 2");
  
-     if (!drtm_extend_ossl_digest((u64)dl_info->dlme_base, dl_info->dlme_size)) {
-         print("DRTM: skl_linux: failed to extend OSSL digest\n");
+     /*
+      * The log declares the TPM's banks, which the TPM tells at a locality

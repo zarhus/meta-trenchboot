@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
 Date: Wed, 16 Sep 2026 16:30:33 +0200
-Subject: [PATCH 1/7] tpmlib: add TPM2_PCR_Read
+Subject: [PATCH 1/8] tpmlib: add TPM2_PCR_Read
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -23,11 +23,11 @@ Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
  5 files changed, 128 insertions(+)
 
 diff --git a/tpmlib/tpm.c b/tpmlib/tpm.c
-index 64b3995..3cf3549 100644
+index e4a5d91..addc209 100644
 --- a/tpmlib/tpm.c
 +++ b/tpmlib/tpm.c
-@@ -152,6 +152,17 @@ int tpm_extend_pcr(struct tpm *t, u32 pcr, u16 algo,
- 	return ret;
+@@ -163,6 +163,17 @@ int tpm_get_pcr_banks(struct tpm *t, u16 *algs, u32 *count)
+ 	return tpm2_get_pcr_banks(t, algs, count);
  }
  
 +int tpm_pcr_read(struct tpm *t, u32 pcr, u16 algo, u8 *digest, u16 *size)
@@ -45,24 +45,24 @@ index 64b3995..3cf3549 100644
  {
  	tpm_relinquish_locality(t);
 diff --git a/tpmlib/tpm.h b/tpmlib/tpm.h
-index a0b57e1..f6b63c0 100644
+index ca75a83..7cc9667 100644
 --- a/tpmlib/tpm.h
 +++ b/tpmlib/tpm.h
-@@ -56,5 +56,7 @@ extern u8 tpm_request_locality(struct tpm *t, u8 l);
- extern void tpm_relinquish_locality(struct tpm *t);
+@@ -57,5 +57,7 @@ extern void tpm_relinquish_locality(struct tpm *t);
  extern int tpm_extend_pcr(struct tpm *t, u32 pcr, u16 algo,
  		u8 *digest);
+ extern int tpm_get_pcr_banks(struct tpm *t, u16 *algs, u32 *count);
 +extern int tpm_pcr_read(struct tpm *t, u32 pcr, u16 algo,
 +		u8 *digest, u16 *size);
  extern void free_tpm(struct tpm *t);
  #endif
 diff --git a/tpmlib/tpm2.h b/tpmlib/tpm2.h
-index 96ed81c..62e2504 100644
+index 1d1a3cd..eabaacd 100644
 --- a/tpmlib/tpm2.h
 +++ b/tpmlib/tpm2.h
-@@ -85,4 +85,11 @@ struct tpm2_resp {
- int tpm2_extend_pcr(struct tpm *t, u32 pcr,
- 		struct tpml_digest_values *digests);
+@@ -96,4 +96,11 @@ int tpm2_extend_pcr(struct tpm *t, u32 pcr,
+  */
+ int tpm2_get_pcr_banks(struct tpm *t, u16 *algs, u32 *count);
  
 +/*
 + * Read one bank of one PCR. On success *size holds the digest length and
@@ -73,10 +73,10 @@ index 96ed81c..62e2504 100644
 +
  #endif
 diff --git a/tpmlib/tpm2_cmds.c b/tpmlib/tpm2_cmds.c
-index 73355af..9ab96a1 100644
+index d76adc7..9f9978a 100644
 --- a/tpmlib/tpm2_cmds.c
 +++ b/tpmlib/tpm2_cmds.c
-@@ -158,3 +158,110 @@ free:
+@@ -268,3 +268,110 @@ free:
  out:
  	return ret;
  }
@@ -188,14 +188,14 @@ index 73355af..9ab96a1 100644
 +	return ret;
 +}
 diff --git a/tpmlib/tpm2_constants.h b/tpmlib/tpm2_constants.h
-index 35bdc1e..dd77d2e 100644
+index 2893cde..805c5c1 100644
 --- a/tpmlib/tpm2_constants.h
 +++ b/tpmlib/tpm2_constants.h
-@@ -58,6 +58,7 @@
- #define TPM_ALG_LAST                 _AT(u16, 0x0044)
+@@ -59,6 +59,7 @@
  
  /* Table 12  Definition of (UINT32) TPM_CC Constants (Numeric Order) <IN/OUT, S> */
+ #define TPM_CC_GET_CAPABILITY        _AT(u32, 0x0000017A)
 +#define TPM_CC_PCR_READ              _AT(u32, 0x0000017E)
  #define TPM_CC_PCR_EXTEND            _AT(u32, 0x00000182)
  
- /* Table 19  Definition of (UINT16) TPM_ST Constants <IN/OUT, S> */
+ /* Table 22  Definition of (UINT32) TPM_CAP Constants <IN/OUT, S> */

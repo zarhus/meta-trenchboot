@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Iwanicki?= <michal.iwanicki@3mdeb.com>
 Date: Wed, 16 Sep 2026 16:30:33 +0200
-Subject: [PATCH 2/7] amdsl: print the launch inputs and PCR 17 around
+Subject: [PATCH 2/8] amdsl: print the launch inputs and PCR 17 around
  DRTM_CMD_LAUNCH
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -29,10 +29,10 @@ Signed-off-by: Michał Iwanicki <michal.iwanicki@3mdeb.com>
  2 files changed, 94 insertions(+)
 
 diff --git a/main.c b/main.c
-index eb6a91b..9c02cd8 100644
+index 71b5761..04f8575 100644
 --- a/main.c
 +++ b/main.c
-@@ -252,6 +252,87 @@ typedef struct {
+@@ -253,6 +253,87 @@ typedef struct {
  
  #if defined(AMDSL)
  
@@ -120,7 +120,7 @@ index eb6a91b..9c02cd8 100644
  static asm_return_t amdsl_launch()
  {
      struct slr_entry_dl_info *dl_info;
-@@ -293,6 +374,8 @@ static asm_return_t amdsl_launch()
+@@ -292,6 +373,8 @@ static asm_return_t amdsl_launch()
          print("AMDSL: PSP NOT found\n");
      }
  
@@ -129,7 +129,7 @@ index eb6a91b..9c02cd8 100644
      /*
       * The DRTM service opens locality 3 to read and extend PCR 17. TIS grants
       * a higher locality only when no lower one is active, so the host holds
-@@ -303,6 +386,8 @@ static asm_return_t amdsl_launch()
+@@ -302,6 +385,8 @@ static asm_return_t amdsl_launch()
  
      if (!drtm_launch()) {
          print("AMDSL: skl_linux: DRTM launch failed\n");
@@ -139,7 +139,7 @@ index eb6a91b..9c02cd8 100644
          print("AMDSL: skl_linux: DRTM launch successful\n");
      }
 diff --git a/psp.c b/psp.c
-index d8eb7b6..618de1d 100644
+index 139b3a6..60cf80d 100644
 --- a/psp.c
 +++ b/psp.c
 @@ -359,6 +359,15 @@ bool drtm_launch(void)
