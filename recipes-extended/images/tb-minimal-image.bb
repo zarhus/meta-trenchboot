@@ -14,3 +14,7 @@ IMAGE_INSTALL:append = " \
                         "
 
 IMAGE_FSTYPES += "wic wic.gz wic.bmap"
+
+# The boot partition takes skl-amdsl.bin from DEPLOY_DIR_IMAGE.
+# nooelint: oelint.vars.mispell.unknown
+do_image_wic[depends] += "skl-amdsl:do_deploy"

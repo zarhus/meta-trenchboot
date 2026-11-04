@@ -12,6 +12,7 @@ PACKAGES = " \
 RDEPENDS:${PN}-base += " \
                         kernel-modules \
                         skl \
+                        skl-amdsl \
                         intel-sinit-acm \
                         aem \
                         "
