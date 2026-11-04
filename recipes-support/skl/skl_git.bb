@@ -8,8 +8,8 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=4641e94ec96f98fabc56ff9cc48be14b"
 DEPENDS = "util-linux-native"
 
 SRC_URI = "git://github.com/TrenchBoot/secure-kernel-loader.git;protocol=https;branch=${BRANCH};name=skl"
-BRANCH = "skl-loader-amdsl-v11"
-SRCREV = "de1899007d038eeacf5edb8e63c0f0a4b3e265c4"
+BRANCH = "skl-loader-amdsl-noblob-sl_header-fix"
+SRCREV = "b4b5d06bb0be70a615be35695131be6313464c16"
 
 TUNE_CCARGS:remove = "-msse3 -mfpmath=sse"
 
