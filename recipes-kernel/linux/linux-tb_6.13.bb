@@ -21,7 +21,7 @@ SRC_URI = "\
     file://debug.cfg \
     file://efi.cfg \
 "
-SRCREV_machine = "dbbb5ef0d915435b20290766f99461e31c273b6c"
+SRCREV_machine = "6e037afaf47657fd22ed501b2ba1b49480500917"
 SRCREV_meta = "49698cadd79745fa26aa7ef507c16902250c1750"
 
 LINUX_VERSION ?= "6.13-rc3"
