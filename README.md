@@ -45,7 +45,8 @@ Meta layer used for testing and demonstration of the
     kas-container build meta-trenchboot/<target>.yml
     ```
 
-Available targets are (all image support both legacy and UEFI):
+    Available targets are (all image support both legacy and UEFI):
+
     - `kas-tb-minimal.yml` - will produce minimal TrenchBoot demonstration image,
       supporting only Linux boot path
     - `kas-tb-full.yml` - will produce full TrenchBoot demonstration image,
