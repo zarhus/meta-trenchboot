@@ -5,6 +5,7 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 SRC_URI += " \
     file://cfg \
     file://0001-slaunch-keep-the-kernel-s-decompression-area-free-on.patch \
+    file://0002-slaunch-txt-take-the-Linux-MLE-size-from-the-MLE-hea.patch \
 "
 
 # nooelint: oelint.vars.mispell.unknown

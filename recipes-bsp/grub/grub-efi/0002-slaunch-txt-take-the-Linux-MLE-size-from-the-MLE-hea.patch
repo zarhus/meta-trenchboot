@@ -1,0 +1,62 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Kope=C4=87?= <michal.kopec@3mdeb.com>
+Date: Thu, 5 Nov 2026 18:05:49 +0100
+Subject: [PATCH] slaunch: txt: take the Linux MLE size from the MLE header on
+ EFI
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+On an EFI launch GRUB reports the MLE size of a Linux kernel as the PE
+SizeOfImage less the setup sectors, which also covers .bss and the
+image's padding. The kernel's MLE header ends the MLE at _edata. The
+SINIT ACM of an Emerald Rapids platform (BIOS SINIT 20231116) rejects
+the launch with "Reported MLE size doesn't correspond to values in
+header" when GRUB reports 0x1338000.
+
+Take the size from the MLE header for Linux on Intel TXT as well, as is
+already done for other EFI images. The MLE page tables still map the
+whole image. Linux uses the MLE size only to check that the event log
+and the AP wake block do not overlap the MLE, and GRUB places both
+below the page tables.
+
+The AMD Linux launch keeps measuring the whole image, since the SKL and
+the PSP DRTM service hash the DLME range GRUB reports and that range has
+been tested on hardware.
+
+Upstream-Status: Pending
+Signed-off-by: Michał Kopeć <michal.kopec@3mdeb.com>
+---
+ grub-core/loader/slaunch/x86_efi_linux.c | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)
+
+diff --git a/grub-core/loader/slaunch/x86_efi_linux.c b/grub-core/loader/slaunch/x86_efi_linux.c
+index 54a37860d..dfdbda718 100644
+--- a/grub-core/loader/slaunch/x86_efi_linux.c
++++ b/grub-core/loader/slaunch/x86_efi_linux.c
+@@ -155,16 +155,15 @@ sl_efi_load_mle_data (struct grub_slaunch_params *slparams,
+   slparams->mle_header_offset = mle_hdr_offset;
+   slparams->mle_entry = mle_hdr->entry_point;
+ 
+-  if (!is_linux)
+-    {
+-      /*
+-       * The current value of the field covers the whole EFI image which can
+-       * include a lot of useless padding.  Limit the size used for measuring
+-       * MLE to that reported by the header.  Don't change the behaviour for
+-       * Linux in case it causes trouble (needs testing).
+-       */
+-      slparams->mle_size = mle_hdr->mle_end - mle_hdr->mle_start;
+-    }
++  /*
++   * The current value of the field covers the whole EFI image which can
++   * include a lot of useless padding.  Limit the size used for measuring
++   * MLE to that reported by the header.  The SINIT ACM rejects an MLE size
++   * that does not correspond to the header, so this applies to Linux on
++   * Intel TXT too.  The AMD Linux launch keeps measuring the whole image.
++   */
++  if (!is_linux || slparams->platform_type == SLP_INTEL_TXT)
++    slparams->mle_size = mle_hdr->mle_end - mle_hdr->mle_start;
+ 
+   return GRUB_ERR_NONE;
+ }
