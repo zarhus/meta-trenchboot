@@ -1,0 +1,60 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Kope=C4=87?= <michal.kopec@3mdeb.com>
+Date: Fri, 6 Nov 2026 10:58:30 +0100
+Subject: [PATCH] slaunch/txt: start the high PMR at 4G
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The high PMR base was the lowest RAM address above 4G rounded up to the
+PMR alignment.  Firmware can leave the first pages above 4G out of the
+memory map, e.g. RAM starting at 0x100001000, which gives a base of
+0x100200000.  The RAM below that base is not protected from DMA and
+Linux rejects any high PMR base other than 4G with "Error hi PMR base".
+
+Start the high PMR at 4G and round its end up so that it covers all RAM.
+Leave it empty when there is no RAM above 4G instead of relying on the
+rounding of ~0 to wrap around to 0.
+
+Upstream-Status: Pending
+
+Signed-off-by: Michał Kopeć <michal.kopec@3mdeb.com>
+---
+ grub-core/loader/slaunch/txt.c | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/grub-core/loader/slaunch/txt.c b/grub-core/loader/slaunch/txt.c
+index ec8957155..2891cec15 100644
+--- a/grub-core/loader/slaunch/txt.c
++++ b/grub-core/loader/slaunch/txt.c
+@@ -844,11 +844,25 @@ init_txt_heap (struct grub_slaunch_params *slparams, struct grub_txt_acm_header
+   os_sinit_data->vtd_pmr_lo_size = ALIGN_DOWN (grub_mmap_get_highest (0x100000000),
+ 					       GRUB_TXT_PMR_ALIGN);
+ 
+-  os_sinit_data->vtd_pmr_hi_base = ALIGN_UP (grub_mmap_get_lowest (0x100000000),
+-					     GRUB_TXT_PMR_ALIGN);
+-  os_sinit_data->vtd_pmr_hi_size = ALIGN_DOWN (grub_mmap_get_highest (0xffffffffffffffff),
+-					       GRUB_TXT_PMR_ALIGN);
+-  os_sinit_data->vtd_pmr_hi_size -= os_sinit_data->vtd_pmr_hi_base;
++  /*
++   * The high PMR has to start at 4G.  Firmware may leave the first pages
++   * above 4G out of the memory map; rounding the lowest RAM address up would
++   * then leave the RAM below the rounded base unprotected and Linux rejects
++   * any base other than 4G.  Leave the high PMR empty if there is no RAM
++   * above 4G.
++   */
++  if (grub_mmap_get_lowest (0x100000000) != ~(grub_uint64_t) 0)
++    {
++      os_sinit_data->vtd_pmr_hi_base = 0x100000000;
++      os_sinit_data->vtd_pmr_hi_size = ALIGN_UP (grub_mmap_get_highest (0xffffffffffffffff),
++						 GRUB_TXT_PMR_ALIGN);
++      os_sinit_data->vtd_pmr_hi_size -= os_sinit_data->vtd_pmr_hi_base;
++    }
++  else
++    {
++      os_sinit_data->vtd_pmr_hi_base = 0;
++      os_sinit_data->vtd_pmr_hi_size = 0;
++    }
+ 
+   grub_dprintf ("slaunch",
+ 		"vtd_pmr_lo_base: 0x%" PRIxGRUB_UINT64_T " vtd_pmr_lo_size: 0x%"
