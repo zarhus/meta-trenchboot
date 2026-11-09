@@ -9,7 +9,7 @@ PR = "r0"
 LICENSE = "BSD-3-Clause"
 LIC_FILES_CHKSUM = "file://COPYING;md5=b86c2f3e88dffdbc026c71e2a818c70c"
 DEPENDS += "libtspi openssl zlib"
-DEPENDS:class-native += "trousers-native openssl-native zlib-native"
+DEPENDS:append:append:class-native = " trousers-native openssl-native zlib-native"
 
 SRC_URI = " \
     https://sourceforge.net/projects/${BPN}/files/${BPN}-${PV}.tar.gz \

@@ -25,14 +25,14 @@ repos:
         exclude: .*\.patch$
 
   - repo: https://github.com/talos-systems/conform
-    rev: v0.1.0-alpha.31
+    rev: v0.1.0-alpha.33
     hooks:
       - id: conform
         stages:
           - commit-msg
 
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.1
+    rev: v2.4.3
     hooks:
       - id: codespell
         exclude: .*\.patch$
@@ -50,7 +50,7 @@ repos:
         args: ["--severity=warning"]
 
   - repo: https://github.com/priv-kweihmann/oelint-adv
-    rev: 9.3.3
+    rev: 9.11.3
     hooks:
       - id: oelint-adv
         args: [--rulefile=.oelint-ruleset.json, --hide=info, --quiet, --fix, --jobs=1, --constantmods=+.oelint-constants.json]
@@ -63,7 +63,7 @@ repos:
         require_serial: true
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.47.0
+    rev: v0.50.0
     hooks:
       - id: markdownlint
       - id: markdownlint-fix
